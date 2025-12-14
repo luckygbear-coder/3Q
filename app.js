@@ -439,9 +439,8 @@ function setDate(iso){
   if (pages.home.classList.contains("active")) playHomeFlip();
 }
 
-// ========== Init ==========
 function init(){
-  // nav
+  // 1) NAV（一定要先綁，避免整個卡死）
   document.querySelectorAll(".navbtn").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const page = btn.dataset.go;
@@ -450,26 +449,33 @@ function init(){
     });
   });
 
-  // date picker
-  safeOn("datePickBtn", "click", ()=> $("datePicker").showPicker?.() || $("datePicker").click());
+  // 2) Date picker
+  safeOn("datePickBtn", "click", ()=>{
+    const dp = $("datePicker");
+    if (!dp) return;
+    dp.showPicker?.() || dp.click();
+  });
   safeOn("datePicker", "change", (e)=> setDate(e.target.value || todayISO()));
 
-  // avatar
+  // 3) Avatar / Quote / Tip
   loadAvatar();
   safeOn("avatarBtn", "click", ()=>{ setQuoteRandom(true); vibrate(); });
-
-  // tip
   safeOn("homeTipCard", "click", ()=>{ setTipRandom(true); vibrate(); });
 
-  // long press copy quote
-  let pressTimer;
+  // 4) 長按複製小語（若元素不存在就跳過）
   const qEl = $("quoteBubble");
-  qEl.addEventListener("touchstart", ()=> pressTimer=setTimeout(()=>copyText(qEl.textContent), 550));
-  qEl.addEventListener("touchend", ()=> clearTimeout(pressTimer));
-  qEl.addEventListener("mousedown", ()=> pressTimer=setTimeout(()=>copyText(qEl.textContent), 550));
-  qEl.addEventListener("mouseup", ()=> clearTimeout(pressTimer));
+  if (qEl){
+    let pressTimer;
+    const start = ()=> pressTimer=setTimeout(()=>copyText(qEl.textContent), 550);
+    const end   = ()=> clearTimeout(pressTimer);
 
-  // task done
+    qEl.addEventListener("touchstart", start);
+    qEl.addEventListener("touchend", end);
+    qEl.addEventListener("mousedown", start);
+    qEl.addEventListener("mouseup", end);
+  }
+
+  // 5) 任務
   safeOn("taskDoneBtn", "click", ()=>{
     const doneMap = loadJSON(KEY_TASKDONE, {});
     const already = !!doneMap[currentDate];
@@ -481,7 +487,6 @@ function init(){
     vibrate();
   });
 
-  // task swap
   safeOn("taskSwapBtn", "click", ()=>{
     const map = loadJSON(KEY_TASKIDX, {});
     const curr = typeof map[currentDate] === "number" ? map[currentDate] : getTaskIndex(currentDate);
@@ -501,13 +506,13 @@ function init(){
     vibrate();
   });
 
-  // write date
+  // 6) 寫日記日期
   safeOn("writeDate", "change", (e)=>{
     setDate(e.target.value || todayISO());
     syncWriteFormFromDate();
   });
 
-  // photos
+  // 7) 上傳照片（寫日記用）
   safeOn("photoInput", "change", async (e)=>{
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -522,11 +527,11 @@ function init(){
     e.target.value = "";
   });
 
-  // save entry
+  // 8) 儲存日記
   safeOn("saveEntryBtn", "click", ()=>{
-    const threeThings = $("field3things").value.trim();
-    const moment = $("fieldMoment").value.trim();
-    const selfTalk = $("fieldSelf").value.trim();
+    const threeThings = $("field3things")?.value?.trim() || "";
+    const moment = $("fieldMoment")?.value?.trim() || "";
+    const selfTalk = $("fieldSelf")?.value?.trim() || "";
 
     const entries = loadJSON(KEY_ENTRIES, {});
     entries[currentDate] = {
@@ -540,19 +545,21 @@ function init(){
 
     try{
       saveJSON(KEY_ENTRIES, entries);
-      $("saveState").textContent = "✅ 已儲存！謝謝你把今天的幸福留住。";
+      const ss = $("saveState");
+      if (ss) ss.textContent = "✅ 已儲存！謝謝你把今天的幸福留住。";
       go("home");
       vibrate();
     }catch{
-      $("saveState").textContent = "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。";
+      const ss = $("saveState");
+      if (ss) ss.textContent = "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。";
     }
   });
 
-  // modal close
+  // 9) Modal 關閉
   safeOn("modalBackdrop", "click", closeEntryModal);
   safeOn("modalCloseBtn", "click", closeEntryModal);
 
-  // settings avatar upload
+  // ✅✅✅ 10) 設定頁：上傳大頭貼（iOS 必須 user gesture 觸發，這裡是 input change）
   safeOn("avatarInput", "change", async (e)=>{
     const file = e.target.files?.[0];
     if (!file) return;
@@ -562,47 +569,72 @@ function init(){
       localStorage.setItem(KEY_AVATAR, dataUrl);
       loadAvatar();
       alert("已更新大頭貼 ✅");
-    }catch{
+    }catch(err){
+      console.error(err);
       alert("上傳失敗，請換一張照片再試一次。");
     }finally{
       e.target.value = "";
     }
   });
 
+  // ✅ 還原預設熊熊頭像
   safeOn("resetAvatarBtn", "click", ()=>{
     localStorage.removeItem(KEY_AVATAR);
     loadAvatar();
     alert("已還原預設熊熊頭像 ✅");
   });
 
-  // export / clear
-  safeOn("exportBtn", "click", ()=>{
+  // ✅ 匯出 JSON（複製到剪貼簿）
+  safeOn("exportBtn", "click", async ()=>{
     const payload = {
       entries: loadJSON(KEY_ENTRIES, {}),
       taskDone: loadJSON(KEY_TASKDONE, {}),
       taskIdx: loadJSON(KEY_TASKIDX, {}),
-      avatar: localStorage.getItem(KEY_AVATAR) ? "(dataUrl omitted)" : null,
       exportedAt: new Date().toISOString()
     };
     const text = JSON.stringify(payload, null, 2);
-    navigator.clipboard?.writeText(text).then(()=> alert("已匯出並複製到剪貼簿！"))
-      .catch(()=> alert("複製失敗：你的瀏覽器可能不允許剪貼簿。"));
+
+    try{
+      // iOS Safari 有時候 clipboard 會失敗，我們提供 fallback：下載檔案
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        alert("已匯出並複製到剪貼簿 ✅");
+      } else {
+        throw new Error("clipboard not available");
+      }
+    }catch{
+      // fallback：下載 json 檔
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "gratitude-bear-backup.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      alert("你的瀏覽器不允許剪貼簿，已改用下載備份檔 ✅");
+    }
   });
 
+  // ✅ 清除所有資料
   safeOn("clearBtn", "click", ()=>{
     if (!confirm("確定要清除所有資料嗎？（無法復原）")) return;
     [KEY_ENTRIES, KEY_TASKDONE, KEY_TASKIDX].forEach(k=> localStorage.removeItem(k));
+    localStorage.removeItem(KEY_AVATAR);
     tempPhotos = [];
+    loadAvatar();
     syncWriteFormFromDate();
     renderHome();
     go("home");
   });
 
-  // init render
+  // 11) 最後才做初始 render（避免中途報錯讓事件沒綁）
   setDate(todayISO());
   syncWriteFormFromDate();
   renderHome();
   playHomeFlip();
 }
 
+// ✅ 保證 DOM 全載入才 init（避免 iOS Safari 偶發 race）
 document.addEventListener("DOMContentLoaded", init);
