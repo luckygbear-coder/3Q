@@ -375,6 +375,29 @@ function renderRecentOnHome(){
     return;
   }
 
+  // ✅ 左右滑動：放「全部」但預設視覺會先看到最新三筆
+  dates.forEach((d)=>{
+    const e = entries[d];
+    const hasPhoto = (e.photos || []).length;
+    const snippet = (e.threeThings || e.moment || e.selfTalk || "")
+      .replace(/\n/g," ")
+      .slice(0,52);
+
+    const item = document.createElement("div");
+    item.className = "item recent-item";
+    item.innerHTML = `
+      <div class="d">${prettyDate(d)} ${hasPhoto ? "📸" : ""}</div>
+      <div class="s">${snippet ? snippet + (snippet.length>=52?"…":"") : "（這天你留下了沉默，也是一種記錄）"}</div>
+    `;
+
+    item.addEventListener("click", ()=> openEntryModal(d));
+    box.appendChild(item);
+  });
+
+  // ✅ 讓畫面一開始停在最左邊（最新那張）
+  box.scrollLeft = 0;
+}
+
   // ✅ 先顯示最新三筆（但容器可捲動看更多）
   dates.forEach((d, idx)=>{
     const e = entries[d];
