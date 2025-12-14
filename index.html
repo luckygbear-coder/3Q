@@ -32,12 +32,12 @@
 
       <!-- Home -->
       <section class="page active" id="pageHome">
-        <div class="card bubble-wrap">
+        <div class="card bubble-wrap flip-card" id="homeBubbleCard">
           <div class="bubble" id="quoteBubble" title="長按可複製"></div>
           <div class="bubble-hint">長按可複製小語</div>
         </div>
 
-        <div class="card task-card">
+        <div class="card task-card flip-card" id="taskCard">
           <div class="card-title">🌱 今日感恩任務</div>
           <div class="task-text" id="taskText"></div>
 
@@ -45,10 +45,13 @@
             <button class="btn primary" id="taskDoneBtn">完成打勾 ✅</button>
             <button class="btn" id="taskSwapBtn">換一個 🔄</button>
           </div>
+
           <div class="task-state" id="taskState"></div>
+          <!-- 動畫層 -->
+          <div class="fx-layer" id="taskFxLayer" aria-hidden="true"></div>
         </div>
 
-        <div class="card mini">
+        <div class="card mini flip-card" id="homeHintCard">
           <div class="card-title">📌 今日小提示</div>
           <div class="muted" id="todayHint"></div>
         </div>
@@ -86,36 +89,10 @@
       <section class="page" id="pageJournal">
         <div class="card">
           <div class="card-title">📚 我的日記本</div>
-          <div class="muted">點一篇就能回看你走過的幸福。</div>
+          <div class="muted">點一篇就能回看你走過的幸福（彈跳視窗）。</div>
         </div>
 
         <div id="journalList" class="list"></div>
-      </section>
-
-      <!-- View -->
-      <section class="page" id="pageView">
-        <div class="card">
-          <div class="card-title" id="viewTitle">📖 日記</div>
-          <div class="photo-grid" id="viewPhotos"></div>
-
-          <div class="block">
-            <div class="label">我今天感謝的 3 件小事</div>
-            <div class="text" id="view3things"></div>
-          </div>
-          <div class="block">
-            <div class="label">今天最幸福的一刻</div>
-            <div class="text" id="viewMoment"></div>
-          </div>
-          <div class="block">
-            <div class="label">我想對自己說</div>
-            <div class="text" id="viewSelf"></div>
-          </div>
-
-          <div class="row">
-            <button class="btn" id="viewEditBtn">編輯</button>
-            <button class="btn danger" id="viewDeleteBtn">刪除</button>
-          </div>
-        </div>
       </section>
 
       <!-- Settings -->
@@ -137,6 +114,40 @@
       <button class="navbtn" data-go="journal">📚<span>日記本</span></button>
       <button class="navbtn" data-go="settings">⚙️<span>設定</span></button>
     </nav>
+  </div>
+
+  <!-- ✅ Modal：日記閱讀彈跳卡片 -->
+  <div class="modal hidden" id="entryModal" aria-hidden="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-sheet" role="dialog" aria-modal="true">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">📖 日記</div>
+        <button class="modal-close" id="modalCloseBtn" aria-label="關閉">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="photo-grid" id="modalPhotos"></div>
+
+        <div class="block">
+          <div class="label">我今天感謝的 3 件小事</div>
+          <div class="text" id="modal3things"></div>
+        </div>
+        <div class="block">
+          <div class="label">今天最幸福的一刻</div>
+          <div class="text" id="modalMoment"></div>
+        </div>
+        <div class="block">
+          <div class="label">我想對自己說</div>
+          <div class="text" id="modalSelf"></div>
+        </div>
+
+        <div class="row">
+          <button class="btn" id="modalEditBtn">編輯</button>
+          <button class="btn danger" id="modalDeleteBtn">刪除</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="./app.js"></script>
