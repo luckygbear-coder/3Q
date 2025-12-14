@@ -208,15 +208,43 @@ body{background:var(--bg);}
   white-space:pre-wrap;
 }
 
-/* ✅ 最近日記回顧：固定高度 + 可捲動 */
+/* ✅ 最近日記回顧：左右滑動 Carousel */
 .recent-list{
   margin-top:10px;
-  max-height: 210px;
-  overflow-y:auto;
-  padding-right:6px;
   display:flex;
-  flex-direction:column;
-  gap:10px;
+  gap:12px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:4px 2px 8px;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 隱藏滾動條（可留可不留） */
+.recent-list::-webkit-scrollbar{ height: 6px; }
+.recent-list::-webkit-scrollbar-thumb{
+  background: rgba(122,90,82,.25);
+  border-radius: 999px;
+}
+.recent-list::-webkit-scrollbar-track{
+  background: transparent;
+}
+
+/* Carousel 卡片寬度 */
+.recent-item{
+  flex: 0 0 78%;
+  scroll-snap-align: start;
+  border-radius:18px;
+}
+
+/* 小螢幕更好滑 */
+@media (max-width: 380px){
+  .recent-item{ flex-basis: 86%; }
+}
+
+/* 讓 item 在 carousel 裡看起來更像卡片 */
+.recent-item.item{
+  background: rgba(255,255,255,.65);
 }
 
 /* Bottom nav fixed */
