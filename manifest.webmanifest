@@ -1,12 +1,31 @@
 {
   "name": "感恩日記熊",
   "short_name": "感恩日記熊",
+  "description": "感恩日記熊陪你記錄每天的幸福與感謝，在溫柔中累積前進的力量。",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffeec9",
-  "theme_color": "#f4a63a",
+  "orientation": "portrait",
+  "background_color": "#FFEEC9",
+  "theme_color": "#F4A63A",
   "icons": [
-    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }
