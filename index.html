@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f4a63a" />
+  <title>感恩日記熊</title>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div class="app-wrap">
+    <!-- Header -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="bear" id="bearBtn" title="點我換一句">🐻</div>
+        <div>
+          <div class="title">感恩日記熊</div>
+          <button class="datebtn" id="datePickBtn">
+            <span id="dateText"></span> ▾
+          </button>
+        </div>
+      </div>
+      <input id="datePicker" class="datePicker" type="date" />
+    </header>
+
+    <!-- Pages -->
+    <main class="pages">
+
+      <!-- Home -->
+      <section class="page active" id="pageHome">
+        <div class="card bubble-wrap">
+          <div class="bubble" id="quoteBubble" title="長按可複製"></div>
+          <div class="bubble-hint">長按可複製小語</div>
+        </div>
+
+        <div class="card task-card">
+          <div class="card-title">🌱 今日感恩任務</div>
+          <div class="task-text" id="taskText"></div>
+
+          <div class="task-actions">
+            <button class="btn primary" id="taskDoneBtn">完成打勾 ✅</button>
+            <button class="btn" id="taskSwapBtn">換一個 🔄</button>
+          </div>
+          <div class="task-state" id="taskState"></div>
+        </div>
+
+        <div class="card mini">
+          <div class="card-title">📌 今日小提示</div>
+          <div class="muted" id="todayHint"></div>
+        </div>
+      </section>
+
+      <!-- Write -->
+      <section class="page" id="pageWrite">
+        <div class="card">
+          <div class="card-title">✍️ 寫下今天的感恩</div>
+
+          <label class="label">日期</label>
+          <input type="date" id="writeDate" class="input" />
+
+          <label class="label">我今天感謝的 3 件小事</label>
+          <textarea id="field3things" class="textarea" rows="4" placeholder="例如：1) 起床喝溫水 2) 朋友的訊息 3) 夕陽很美"></textarea>
+
+          <label class="label">今天最幸福的一刻是…</label>
+          <textarea id="fieldMoment" class="textarea" rows="3" placeholder="把那個瞬間記下來"></textarea>
+
+          <label class="label">我想對自己說…</label>
+          <textarea id="fieldSelf" class="textarea" rows="3" placeholder="辛苦了、謝謝你、你很棒…"></textarea>
+
+          <label class="label">上傳照片（最多 3 張）</label>
+          <input type="file" id="photoInput" class="input" accept="image/*" multiple />
+          <div class="photo-grid" id="photoGrid"></div>
+
+          <div class="row">
+            <button class="btn primary full" id="saveEntryBtn">儲存今天的日記 💛</button>
+          </div>
+          <div class="muted" id="saveState"></div>
+        </div>
+      </section>
+
+      <!-- Journal -->
+      <section class="page" id="pageJournal">
+        <div class="card">
+          <div class="card-title">📚 我的日記本</div>
+          <div class="muted">點一篇就能回看你走過的幸福。</div>
+        </div>
+
+        <div id="journalList" class="list"></div>
+      </section>
+
+      <!-- View -->
+      <section class="page" id="pageView">
+        <div class="card">
+          <div class="card-title" id="viewTitle">📖 日記</div>
+          <div class="photo-grid" id="viewPhotos"></div>
+
+          <div class="block">
+            <div class="label">我今天感謝的 3 件小事</div>
+            <div class="text" id="view3things"></div>
+          </div>
+          <div class="block">
+            <div class="label">今天最幸福的一刻</div>
+            <div class="text" id="viewMoment"></div>
+          </div>
+          <div class="block">
+            <div class="label">我想對自己說</div>
+            <div class="text" id="viewSelf"></div>
+          </div>
+
+          <div class="row">
+            <button class="btn" id="viewEditBtn">編輯</button>
+            <button class="btn danger" id="viewDeleteBtn">刪除</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="page" id="pageSettings">
+        <div class="card">
+          <div class="card-title">⚙️ 設定</div>
+          <button class="btn full" id="exportBtn">匯出 JSON（複製到剪貼簿）</button>
+          <button class="btn danger full" id="clearBtn">清除所有資料</button>
+          <div class="muted">（之後要升級雲端同步我也可以幫你加）</div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <button class="navbtn active" data-go="home">🏠<span>首頁</span></button>
+      <button class="navbtn" data-go="write">＋<span>寫日記</span></button>
+      <button class="navbtn" data-go="journal">📚<span>日記本</span></button>
+      <button class="navbtn" data-go="settings">⚙️<span>設定</span></button>
+    </nav>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
