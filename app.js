@@ -3,7 +3,7 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
 }
 
-// ========== 文案：支持語（✅刪掉指定那句） ==========
+// ========== 文案：支持語 ==========
 const QUOTES = [
   "🐻 你願意記錄今天，本身就值得被感謝。",
   "🐻 不是每天都完美，但你每天都很努力。",
@@ -26,7 +26,6 @@ const QUOTES = [
   "🐻 今天能記下一句話，也很棒。",
   "🐻 你值得被好好對待，包括被自己。",
   "🐻 有些日子很輕，但依然重要。",
-  // ❌ 已移除：「謝謝你沒有放棄自己。」
   "🐻 你的心，比你想像的還堅強。",
   "🐻 幸福有很多樣子，你正在發現它。",
   "🐻 你不是孤單的，我在。",
@@ -37,7 +36,7 @@ const QUOTES = [
   "🐻 謝謝你，願意活在這個世界。"
 ];
 
-// ========== 10 個今日小提示（可點換 / 刷新換） ==========
+// ========== 10 個今日小提示 ==========
 const TIPS = [
   "今天就寫一句也可以：你最想感謝什麼？",
   "回想一個「被你忽略的小幸福」，把它寫下來。",
@@ -106,13 +105,30 @@ const TASKS = [
 ];
 
 // ========== Storage keys ==========
-const KEY_ENTRIES = "gb_entries_v1";
+const KEY_ENTRIES  = "gb_entries_v1";
 const KEY_TASKDONE = "gb_taskdone_v1";
 const KEY_TASKIDX  = "gb_taskidx_v1";
 const KEY_AVATAR   = "gb_avatar_v1";
 
 // ========== Helpers ==========
 const $ = (id) => document.getElementById(id);
+const exists = (el) => !!el;
+
+function safeText(id, text){
+  const el = $(id);
+  if (el) el.textContent = text;
+}
+function safeValue(id, val){
+  const el = $(id);
+  if (el) el.value = val;
+}
+function safeOn(id, event, handler){
+  const el = $(id);
+  if (el) el.addEventListener(event, handler);
+}
+function safeOnEl(el, event, handler){
+  if (el) el.addEventListener(event, handler);
+}
 
 function todayISO(){
   const d = new Date();
@@ -122,6 +138,7 @@ function todayISO(){
   return `${yyyy}-${mm}-${dd}`;
 }
 function prettyDate(iso){
+  if (!iso || !iso.includes("-")) return iso || "";
   const [y,m,d] = iso.split("-");
   return `${y}/${m}/${d}`;
 }
@@ -133,10 +150,7 @@ function saveJSON(key, obj){
   localStorage.setItem(key, JSON.stringify(obj));
 }
 function vibrate(){ navigator.vibrate?.(15); }
-
-function pickRandom(arr){
-  return arr[Math.floor(Math.random()*arr.length)];
-}
+function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 function clampPhotos(arr){ return arr.slice(0,3); }
 
 async function fileToDataURL(file){
@@ -148,38 +162,40 @@ async function fileToDataURL(file){
   });
 }
 
-// ========== App state ==========
+// ========== State ==========
 let currentDate = todayISO();
 let tempPhotos = [];
 
-// ========== Pages ==========
-const pages = {
-  home: $("pageHome"),
-  write: $("pageWrite"),
-  journal: $("pageJournal"),
-  settings: $("pageSettings")
-};
+// ========== Pages (允許某些頁不存在也不爆) ==========
+function getPages(){
+  return {
+    home: $("pageHome"),
+    write: $("pageWrite"),
+    journal: $("pageJournal"),
+    settings: $("pageSettings")
+  };
+}
 
 function go(page){
-  Object.values(pages).forEach(p => p.classList.remove("active"));
-  pages[page].classList.add("active");
-  document.querySelectorAll(".navbtn").forEach(b => b.classList.toggle("active", b.dataset.go === page));
+  const pages = getPages();
+  Object.entries(pages).forEach(([k, el])=>{
+    if (el) el.classList.toggle("active", k === page);
+  });
+
+  document.querySelectorAll(".navbtn").forEach(b=>{
+    b.classList.toggle("active", b.dataset.go === page);
+  });
 
   if (page === "home") { playHomeFlip(); renderHome(); }
   if (page === "journal") renderJournalList();
 }
 
-document.querySelectorAll(".navbtn").forEach(btn=>{
-  btn.addEventListener("click", ()=> {
-    const page = btn.dataset.go;
-    if (page === "write") syncWriteFormFromDate();
-    go(page);
-  });
-});
-
-// ========== 翻頁感：首頁 ==========
+// ========== 翻頁感 ==========
 function playHomeFlip(){
-  const cards = [$("homeBubbleCard"), $("taskCard"), $("homeTipCard"), $("recentCard")].filter(Boolean);
+  const cards = ["homeBubbleCard","taskCard","homeTipCard","recentCard"]
+    .map(id=>$(id))
+    .filter(Boolean);
+
   cards.forEach((c, i)=>{
     c.classList.remove("flip-in");
     void c.offsetWidth;
@@ -187,141 +203,78 @@ function playHomeFlip(){
   });
 }
 
-// ========== Date picker ==========
-$("dateText").textContent = prettyDate(currentDate);
-$("datePicker").value = currentDate;
-
-$("datePickBtn").addEventListener("click", ()=> $("datePicker").showPicker?.() || $("datePicker").click());
-$("datePicker").addEventListener("change", (e)=>{
-  setDate(e.target.value || todayISO());
-});
-
-function setDate(iso){
-  currentDate = iso;
-  $("dateText").textContent = prettyDate(currentDate);
-  $("datePicker").value = currentDate;
-  $("writeDate").value = currentDate;
-
-  // 日期切換 -> 首頁內容刷新
-  renderHome();
-  if (pages.home.classList.contains("active")) playHomeFlip();
-}
-
-// ========== 头像：預設 images/bear.png + 可自訂 ==========
+// ========== Avatar ==========
 function loadAvatar(){
   const saved = localStorage.getItem(KEY_AVATAR);
-  if (saved && saved.startsWith("data:image/")) {
-    $("avatarImg").src = saved;
-  } else {
-    $("avatarImg").src = "./images/bear.png";
-  }
-}
-loadAvatar();
-
-// 點大頭貼：換小語
-$("avatarBtn").addEventListener("click", ()=>{
-  setQuoteRandom(true);
-  vibrate();
-});
-
-// ========== Home：小語 / 任務 / 小提示 / 最近日記 ==========
-function renderHome(){
-  // ✅ 每次刷新（renderHome）都隨機
-  setQuoteRandom(false);
-  setTipRandom(false);
-
-  // 任務顯示（仍用每天固定任務 idx）
-  const tIdx = getTaskIndex(currentDate);
-  $("taskText").textContent = TASKS[tIdx];
-
-  const doneMap = loadJSON(KEY_TASKDONE, {});
-  const done = !!doneMap[currentDate];
-  $("taskState").textContent = done ? "✅ 你完成了今天的小任務！謝謝你照顧自己。" : "（完成後打勾，沒完成也沒關係）";
-
-  renderRecentOnHome();
+  const img = $("avatarImg");
+  if (!img) return;
+  if (saved && saved.startsWith("data:image/")) img.src = saved;
+  else img.src = "./images/bear.png";
 }
 
-// 小語：每次 renderHome 隨機；也可手動換
+// ========== Quote / Tip ==========
 function setQuoteRandom(animate){
-  const q = pickRandom(QUOTES);
-  $("quoteBubble").textContent = q;
+  const bubble = $("quoteBubble");
+  if (!bubble) return;
+  bubble.textContent = pickRandom(QUOTES);
 
   if (animate){
-    $("homeBubbleCard").classList.remove("flip-in");
-    void $("homeBubbleCard").offsetWidth;
-    $("homeBubbleCard").classList.add("flip-in");
+    const card = $("homeBubbleCard");
+    if (card){
+      card.classList.remove("flip-in");
+      void card.offsetWidth;
+      card.classList.add("flip-in");
+    }
   }
 }
-
-// 小提示：每次 renderHome 隨機；點卡片換
 function setTipRandom(animate){
-  const t = pickRandom(TIPS);
-  $("tipText").textContent = t;
+  const tip = $("tipText");
+  if (!tip) return;
+  tip.textContent = pickRandom(TIPS);
 
   if (animate){
-    $("homeTipCard").classList.remove("flip-in");
-    void $("homeTipCard").offsetWidth;
-    $("homeTipCard").classList.add("flip-in");
+    const card = $("homeTipCard");
+    if (card){
+      card.classList.remove("flip-in");
+      void card.offsetWidth;
+      card.classList.add("flip-in");
+    }
   }
 }
 
-$("homeTipCard").addEventListener("click", ()=>{
-  setTipRandom(true);
-  vibrate();
-});
-
-// 長按複製小語
-let pressTimer;
-$("quoteBubble").addEventListener("touchstart", ()=>{
-  pressTimer = setTimeout(()=> copyText($("quoteBubble").textContent), 550);
-});
-$("quoteBubble").addEventListener("touchend", ()=> clearTimeout(pressTimer));
-$("quoteBubble").addEventListener("mousedown", ()=>{
-  pressTimer = setTimeout(()=> copyText($("quoteBubble").textContent), 550);
-});
-$("quoteBubble").addEventListener("mouseup", ()=> clearTimeout(pressTimer));
-
-function copyText(t){
-  navigator.clipboard?.writeText(t).then(()=>{
-    // 輕提示（不另開區塊）
-    $("tipText").textContent = "已複製熊熊小語 💛（點這裡可換提示）";
+async function copyText(t){
+  try{
+    await navigator.clipboard?.writeText(t);
+    safeText("tipText", "已複製熊熊小語 💛（點這裡可換提示）");
     vibrate();
-  }).catch(()=>{});
+  }catch{}
 }
 
 // ========== 任務：每日固定 ==========
 function getTaskIndex(dateISO){
   const map = loadJSON(KEY_TASKIDX, {});
   if (typeof map[dateISO] === "number") return map[dateISO];
-  // 可重現 hash：讓每天固定同一個任務
+
   let h = 0;
   const s = "TASK:"+dateISO;
   for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+
   const idx = h % TASKS.length;
   map[dateISO] = idx;
   saveJSON(KEY_TASKIDX, map);
   return idx;
 }
 
-// ✅ 任務完成：+1 + 打勾動效
-$("taskDoneBtn").addEventListener("click", ()=>{
-  const doneMap = loadJSON(KEY_TASKDONE, {});
-  const already = !!doneMap[currentDate];
-  doneMap[currentDate] = true;
-  saveJSON(KEY_TASKDONE, doneMap);
-
-  renderHome();
-  playTaskDoneFX(already);
-  vibrate();
-});
-
 function playTaskDoneFX(alreadyDone){
   const fx = $("taskFxLayer");
+  const taskCard = $("taskCard");
+  if (!fx || !taskCard) return;
+
   fx.innerHTML = "";
 
-  $("taskCard").classList.remove("task-done-glow");
-  void $("taskCard").offsetWidth;
-  $("taskCard").classList.add("task-done-glow");
+  taskCard.classList.remove("task-done-glow");
+  void taskCard.offsetWidth;
+  taskCard.classList.add("task-done-glow");
 
   if (!alreadyDone){
     const plus = document.createElement("div");
@@ -338,29 +291,32 @@ function playTaskDoneFX(alreadyDone){
   setTimeout(()=> check.remove(), 700);
 }
 
-// 任務：換一個（重置完成）
-$("taskSwapBtn").addEventListener("click", ()=>{
-  const map = loadJSON(KEY_TASKIDX, {});
-  const curr = typeof map[currentDate] === "number" ? map[currentDate] : getTaskIndex(currentDate);
+// ========== Home render ==========
+function renderHome(){
+  setQuoteRandom(false);
+  setTipRandom(false);
 
-  let next = Math.floor(Math.random() * TASKS.length);
-  if (TASKS.length > 1) while (next === curr) next = Math.floor(Math.random() * TASKS.length);
+  const taskText = $("taskText");
+  const taskState = $("taskState");
+  if (taskText){
+    const tIdx = getTaskIndex(currentDate);
+    taskText.textContent = TASKS[tIdx];
+  }
 
-  map[currentDate] = next;
-  saveJSON(KEY_TASKIDX, map);
+  if (taskState){
+    const doneMap = loadJSON(KEY_TASKDONE, {});
+    const done = !!doneMap[currentDate];
+    taskState.textContent = done
+      ? "✅ 你完成了今天的小任務！謝謝你照顧自己。"
+      : "（完成後打勾，沒完成也沒關係）";
+  }
 
-  const doneMap = loadJSON(KEY_TASKDONE, {});
-  doneMap[currentDate] = false;
-  saveJSON(KEY_TASKDONE, doneMap);
+  renderRecentOnHome();
+}
 
-  renderHome();
-  playHomeFlip();
-  vibrate();
-});
-
-// ========== 首頁最近日記回顧 ==========
 function renderRecentOnHome(){
   const box = $("recentList");
+  if (!box) return;
   box.innerHTML = "";
 
   const entries = loadJSON(KEY_ENTRIES, {});
@@ -374,7 +330,6 @@ function renderRecentOnHome(){
     return;
   }
 
-  // ✅ 左右滑動：放「全部」但預設視覺會先看到最新三筆
   dates.forEach((d)=>{
     const e = entries[d];
     const hasPhoto = (e.photos || []).length;
@@ -388,60 +343,24 @@ function renderRecentOnHome(){
       <div class="d">${prettyDate(d)} ${hasPhoto ? "📸" : ""}</div>
       <div class="s">${snippet ? snippet + (snippet.length>=52?"…":"") : "（這天你留下了沉默，也是一種記錄）"}</div>
     `;
-
     item.addEventListener("click", ()=> openEntryModal(d));
     box.appendChild(item);
   });
 
-  // ✅ 讓畫面一開始停在最左邊（最新那張）
   box.scrollLeft = 0;
 }
 
-
-
 // ========== Write ==========
-$("writeDate").value = currentDate;
-$("writeDate").addEventListener("change", (e)=>{
-  setDate(e.target.value || todayISO());
-  syncWriteFormFromDate();
-});
-
-function syncWriteFormFromDate(){
-  tempPhotos = [];
-  renderPhotoGrid();
-
-  const entries = loadJSON(KEY_ENTRIES, {});
-  const entry = entries[currentDate];
-  $("field3things").value = entry?.threeThings || "";
-  $("fieldMoment").value = entry?.moment || "";
-  $("fieldSelf").value = entry?.selfTalk || "";
-  tempPhotos = Array.isArray(entry?.photos) ? entry.photos.slice(0,3) : [];
-  renderPhotoGrid();
-  $("saveState").textContent = entry ? `（已載入 ${prettyDate(currentDate)} 的日記，可直接修改再儲存）` : "";
-}
-
-$("photoInput").addEventListener("change", async (e)=>{
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
-
-  for (const f of files) {
-    if (tempPhotos.length >= 3) break;
-    const dataUrl = await fileToDataURL(f);
-    tempPhotos.push(dataUrl);
-  }
-  tempPhotos = clampPhotos(tempPhotos);
-  renderPhotoGrid();
-  e.target.value = "";
-});
-
 function renderPhotoGrid(){
   const grid = $("photoGrid");
+  if (!grid) return;
   grid.innerHTML = "";
   tempPhotos.forEach((src, i)=>{
     const div = document.createElement("div");
     div.className = "photo";
     div.innerHTML = `<img src="${src}" alt="photo${i}"><button class="x" title="刪除">×</button>`;
-    div.querySelector(".x").addEventListener("click", ()=>{
+    const x = div.querySelector(".x");
+    x?.addEventListener("click", ()=>{
       tempPhotos.splice(i,1);
       renderPhotoGrid();
     });
@@ -449,34 +368,33 @@ function renderPhotoGrid(){
   });
 }
 
-$("saveEntryBtn").addEventListener("click", ()=>{
-  const threeThings = $("field3things").value.trim();
-  const moment = $("fieldMoment").value.trim();
-  const selfTalk = $("fieldSelf").value.trim();
+function syncWriteFormFromDate(){
+  tempPhotos = [];
+  renderPhotoGrid();
 
   const entries = loadJSON(KEY_ENTRIES, {});
-  entries[currentDate] = {
-    date: currentDate,
-    threeThings,
-    moment,
-    selfTalk,
-    photos: clampPhotos(tempPhotos),
-    updatedAt: Date.now()
-  };
+  const entry = entries[currentDate];
 
-  try {
-    saveJSON(KEY_ENTRIES, entries);
-    $("saveState").textContent = "✅ 已儲存！謝謝你把今天的幸福留住。";
-    go("home");
-    vibrate();
-  } catch (err) {
-    $("saveState").textContent = "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。";
+  const f1 = $("field3things");
+  const f2 = $("fieldMoment");
+  const f3 = $("fieldSelf");
+  if (f1) f1.value = entry?.threeThings || "";
+  if (f2) f2.value = entry?.moment || "";
+  if (f3) f3.value = entry?.selfTalk || "";
+
+  tempPhotos = Array.isArray(entry?.photos) ? entry.photos.slice(0,3) : [];
+  renderPhotoGrid();
+
+  const state = $("saveState");
+  if (state){
+    state.textContent = entry ? `（已載入 ${prettyDate(currentDate)} 的日記，可直接修改再儲存）` : "";
   }
-});
+}
 
-// ========== Journal list + Modal ==========
+// ========== Journal ==========
 function renderJournalList(){
   const list = $("journalList");
+  if (!list) return;
   list.innerHTML = "";
 
   const entries = loadJSON(KEY_ENTRIES, {});
@@ -493,7 +411,10 @@ function renderJournalList(){
   dates.forEach(d=>{
     const e = entries[d];
     const hasPhoto = (e.photos || []).length;
-    const snippet = (e.threeThings || e.moment || e.selfTalk || "").replace(/\n/g," ").slice(0,40);
+    const snippet = (e.threeThings || e.moment || e.selfTalk || "")
+      .replace(/\n/g," ")
+      .slice(0,40);
+
     const item = document.createElement("div");
     item.className = "item";
     item.innerHTML = `
@@ -505,111 +426,257 @@ function renderJournalList(){
   });
 }
 
-// Modal elements
-const modal = $("entryModal");
-const modalBackdrop = $("modalBackdrop");
-const modalCloseBtn = $("modalCloseBtn");
-
+// ========== Modal ==========
+const modal = () => $("entryModal");
 function openEntryModal(dateISO){
   const entries = loadJSON(KEY_ENTRIES, {});
   const e = entries[dateISO];
   if (!e) return;
 
-  $("modalTitle").textContent = `📖 ${prettyDate(dateISO)} 的日記`;
-  $("modal3things").textContent = e.threeThings || "（未填）";
-  $("modalMoment").textContent = e.moment || "（未填）";
-  $("modalSelf").textContent = e.selfTalk || "（未填）";
+  safeText("modalTitle", `📖 ${prettyDate(dateISO)} 的日記`);
+  safeText("modal3things", e.threeThings || "（未填）");
+  safeText("modalMoment",  e.moment || "（未填）");
+  safeText("modalSelf",    e.selfTalk || "（未填）");
 
   const mp = $("modalPhotos");
-  mp.innerHTML = "";
-  (e.photos || []).forEach(src=>{
-    const div = document.createElement("div");
-    div.className = "photo";
-    div.innerHTML = `<img src="${src}" alt="photo">`;
-    mp.appendChild(div);
-  });
+  if (mp){
+    mp.innerHTML = "";
+    (e.photos || []).forEach(src=>{
+      const div = document.createElement("div");
+      div.className = "photo";
+      div.innerHTML = `<img src="${src}" alt="photo">`;
+      mp.appendChild(div);
+    });
+  }
 
-  $("modalEditBtn").onclick = ()=>{
-    closeEntryModal();
-    setDate(dateISO);
-    go("write");
-    syncWriteFormFromDate();
-  };
+  const editBtn = $("modalEditBtn");
+  if (editBtn){
+    editBtn.onclick = ()=>{
+      closeEntryModal();
+      setDate(dateISO);
+      go("write");
+      syncWriteFormFromDate();
+    };
+  }
 
-  $("modalDeleteBtn").onclick = ()=>{
-    if (!confirm("確定要刪除這篇日記嗎？")) return;
-    const entries2 = loadJSON(KEY_ENTRIES, {});
-    delete entries2[dateISO];
-    saveJSON(KEY_ENTRIES, entries2);
-    closeEntryModal();
-    renderHome();
-    if (pages.journal.classList.contains("active")) renderJournalList();
-  };
+  const delBtn = $("modalDeleteBtn");
+  if (delBtn){
+    delBtn.onclick = ()=>{
+      if (!confirm("確定要刪除這篇日記嗎？")) return;
+      const entries2 = loadJSON(KEY_ENTRIES, {});
+      delete entries2[dateISO];
+      saveJSON(KEY_ENTRIES, entries2);
+      closeEntryModal();
+      renderHome();
+      renderJournalList();
+    };
+  }
 
-  modal.classList.remove("hidden");
-  modal.setAttribute("aria-hidden","false");
+  const m = modal();
+  if (m){
+    m.classList.remove("hidden");
+    m.setAttribute("aria-hidden","false");
+  }
 }
 function closeEntryModal(){
-  modal.classList.add("hidden");
-  modal.setAttribute("aria-hidden","true");
+  const m = modal();
+  if (!m) return;
+  m.classList.add("hidden");
+  m.setAttribute("aria-hidden","true");
 }
-modalBackdrop.addEventListener("click", closeEntryModal);
-modalCloseBtn.addEventListener("click", closeEntryModal);
-window.addEventListener("keydown", (e)=>{
-  if (e.key === "Escape" && !modal.classList.contains("hidden")) closeEntryModal();
-});
 
-// ========== Settings：上傳頭像 ==========
-$("avatarInput").addEventListener("change", async (e)=>{
-  const file = e.target.files?.[0];
-  if (!file) return;
+// ========== Date ==========
+function setDate(iso){
+  currentDate = iso;
+  safeText("dateText", prettyDate(currentDate));
+  safeValue("datePicker", currentDate);
+  safeValue("writeDate", currentDate);
 
-  try{
-    const dataUrl = await fileToDataURL(file);
-    localStorage.setItem(KEY_AVATAR, dataUrl);
-    loadAvatar();
-    alert("已更新大頭貼 ✅");
-  }catch{
-    alert("上傳失敗，請換一張照片再試一次。");
-  }finally{
-    e.target.value = "";
-  }
-});
-
-$("resetAvatarBtn").addEventListener("click", ()=>{
-  localStorage.removeItem(KEY_AVATAR);
-  loadAvatar();
-  alert("已還原預設熊熊頭像 ✅");
-});
-
-// ========== Settings：匯出/清除 ==========
-$("exportBtn").addEventListener("click", ()=>{
-  const payload = {
-    entries: loadJSON(KEY_ENTRIES, {}),
-    taskDone: loadJSON(KEY_TASKDONE, {}),
-    taskIdx: loadJSON(KEY_TASKIDX, {}),
-    avatar: localStorage.getItem(KEY_AVATAR) ? "(dataUrl omitted)" : null,
-    exportedAt: new Date().toISOString()
-  };
-  const text = JSON.stringify(payload, null, 2);
-  navigator.clipboard?.writeText(text).then(()=>{
-    alert("已匯出並複製到剪貼簿！");
-  }).catch(()=>{
-    alert("複製失敗：你的瀏覽器可能不允許剪貼簿。");
-  });
-});
-
-$("clearBtn").addEventListener("click", ()=>{
-  if (!confirm("確定要清除所有資料嗎？（無法復原）")) return;
-  [KEY_ENTRIES, KEY_TASKDONE, KEY_TASKIDX].forEach(k=> localStorage.removeItem(k));
-  tempPhotos = [];
-  syncWriteFormFromDate();
   renderHome();
-  go("home");
-});
+  const pages = getPages();
+  if (pages.home?.classList.contains("active")) playHomeFlip();
+}
+
+// ========== Bind events ==========
+function bindEvents(){
+  // bottom nav
+  document.querySelectorAll(".navbtn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const page = btn.dataset.go;
+      if (page === "write") syncWriteFormFromDate();
+      go(page);
+    });
+  });
+
+  // date picker
+  safeOn("datePickBtn", "click", ()=>{
+    const dp = $("datePicker");
+    if (!dp) return;
+    dp.showPicker?.() || dp.click();
+  });
+  safeOn("datePicker", "change", (e)=> setDate(e.target.value || todayISO()));
+
+  // avatar click => new quote
+  safeOn("avatarBtn", "click", ()=>{ setQuoteRandom(true); vibrate(); });
+
+  // tip click => new tip
+  safeOn("homeTipCard", "click", ()=>{ setTipRandom(true); vibrate(); });
+
+  // long press copy quote
+  const quoteEl = $("quoteBubble");
+  let pressTimer;
+  safeOnEl(quoteEl, "touchstart", ()=>{ pressTimer = setTimeout(()=> copyText(quoteEl.textContent), 550); });
+  safeOnEl(quoteEl, "touchend", ()=> clearTimeout(pressTimer));
+  safeOnEl(quoteEl, "mousedown", ()=>{ pressTimer = setTimeout(()=> copyText(quoteEl.textContent), 550); });
+  safeOnEl(quoteEl, "mouseup", ()=> clearTimeout(pressTimer));
+
+  // task buttons
+  safeOn("taskDoneBtn", "click", ()=>{
+    const doneMap = loadJSON(KEY_TASKDONE, {});
+    const already = !!doneMap[currentDate];
+    doneMap[currentDate] = true;
+    saveJSON(KEY_TASKDONE, doneMap);
+
+    renderHome();
+    playTaskDoneFX(already);
+    vibrate();
+  });
+
+  safeOn("taskSwapBtn", "click", ()=>{
+    const map = loadJSON(KEY_TASKIDX, {});
+    const curr = typeof map[currentDate] === "number" ? map[currentDate] : getTaskIndex(currentDate);
+
+    let next = Math.floor(Math.random() * TASKS.length);
+    if (TASKS.length > 1) while (next === curr) next = Math.floor(Math.random() * TASKS.length);
+
+    map[currentDate] = next;
+    saveJSON(KEY_TASKIDX, map);
+
+    const doneMap = loadJSON(KEY_TASKDONE, {});
+    doneMap[currentDate] = false;
+    saveJSON(KEY_TASKDONE, doneMap);
+
+    renderHome();
+    playHomeFlip();
+    vibrate();
+  });
+
+  // write date
+  safeOn("writeDate", "change", (e)=>{
+    setDate(e.target.value || todayISO());
+    syncWriteFormFromDate();
+  });
+
+  // photos upload
+  safeOn("photoInput", "change", async (e)=>{
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    for (const f of files) {
+      if (tempPhotos.length >= 3) break;
+      const dataUrl = await fileToDataURL(f);
+      tempPhotos.push(dataUrl);
+    }
+    tempPhotos = clampPhotos(tempPhotos);
+    renderPhotoGrid();
+    e.target.value = "";
+  });
+
+  // save entry
+  safeOn("saveEntryBtn", "click", ()=>{
+    const threeThings = ($("field3things")?.value || "").trim();
+    const moment     = ($("fieldMoment")?.value || "").trim();
+    const selfTalk   = ($("fieldSelf")?.value || "").trim();
+
+    const entries = loadJSON(KEY_ENTRIES, {});
+    entries[currentDate] = {
+      date: currentDate,
+      threeThings,
+      moment,
+      selfTalk,
+      photos: clampPhotos(tempPhotos),
+      updatedAt: Date.now()
+    };
+
+    try{
+      saveJSON(KEY_ENTRIES, entries);
+      safeText("saveState", "✅ 已儲存！謝謝你把今天的幸福留住。");
+      go("home");
+      vibrate();
+    }catch{
+      safeText("saveState", "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。");
+    }
+  });
+
+  // modal close
+  safeOn("modalBackdrop", "click", closeEntryModal);
+  safeOn("modalCloseBtn", "click", closeEntryModal);
+  window.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape") closeEntryModal();
+  });
+
+  // avatar upload
+  safeOn("avatarInput", "change", async (e)=>{
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try{
+      const dataUrl = await fileToDataURL(file);
+      localStorage.setItem(KEY_AVATAR, dataUrl);
+      loadAvatar();
+      alert("已更新大頭貼 ✅");
+    }catch{
+      alert("上傳失敗，請換一張照片再試一次。");
+    }finally{
+      e.target.value = "";
+    }
+  });
+
+  safeOn("resetAvatarBtn", "click", ()=>{
+    localStorage.removeItem(KEY_AVATAR);
+    loadAvatar();
+    alert("已還原預設熊熊頭像 ✅");
+  });
+
+  // export / clear
+  safeOn("exportBtn", "click", ()=>{
+    const payload = {
+      entries: loadJSON(KEY_ENTRIES, {}),
+      taskDone: loadJSON(KEY_TASKDONE, {}),
+      taskIdx: loadJSON(KEY_TASKIDX, {}),
+      avatar: localStorage.getItem(KEY_AVATAR) ? "(dataUrl omitted)" : null,
+      exportedAt: new Date().toISOString()
+    };
+    const text = JSON.stringify(payload, null, 2);
+    navigator.clipboard?.writeText(text).then(()=> alert("已匯出並複製到剪貼簿！"))
+      .catch(()=> alert("複製失敗：你的瀏覽器可能不允許剪貼簿。"));
+  });
+
+  safeOn("clearBtn", "click", ()=>{
+    if (!confirm("確定要清除所有資料嗎？（無法復原）")) return;
+    [KEY_ENTRIES, KEY_TASKDONE, KEY_TASKIDX].forEach(k=> localStorage.removeItem(k));
+    tempPhotos = [];
+    syncWriteFormFromDate();
+    renderHome();
+    go("home");
+  });
+}
 
 // ========== Init ==========
-setDate(todayISO());
-renderHome();
-syncWriteFormFromDate();
-playHomeFlip();
+function init(){
+  loadAvatar();
+  bindEvents();
+
+  // 初始日期
+  setDate(todayISO());
+
+  // 初始載入表單（如果有寫日記頁）
+  syncWriteFormFromDate();
+
+  // 初始渲染
+  renderHome();
+  playHomeFlip();
+}
+
+// ✅ 等 DOM 真的就緒再跑（避免 null 爆炸）
+document.addEventListener("DOMContentLoaded", init);
