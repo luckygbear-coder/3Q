@@ -92,10 +92,10 @@ const TASKS = [
 ];
 
 // ========== Storage keys ==========
-const KEY_ENTRIES = "gb_entries_v1";     // { "YYYY-MM-DD": {fields..., photos:[dataUrl], updatedAt } }
-const KEY_TASKDONE = "gb_taskdone_v1";   // { "YYYY-MM-DD": true }
-const KEY_TASKIDX  = "gb_taskidx_v1";    // { "YYYY-MM-DD": number }
-const KEY_QUOTEIDX = "gb_quoteidx_v1";   // { "YYYY-MM-DD": number }
+const KEY_ENTRIES = "gb_entries_v1";
+const KEY_TASKDONE = "gb_taskdone_v1";
+const KEY_TASKIDX  = "gb_taskidx_v1";
+const KEY_QUOTEIDX = "gb_quoteidx_v1";
 
 // ========== Helpers ==========
 const $ = (id) => document.getElementById(id);
@@ -119,23 +119,23 @@ function saveJSON(key, obj){
   localStorage.setItem(key, JSON.stringify(obj));
 }
 function hashToIndex(str, mod){
-  // 簡單可重現 hash，讓每天固定一個語錄/任務
   let h = 0;
   for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
   return h % mod;
 }
 function clampPhotos(arr){ return arr.slice(0,3); }
+function vibrate(){ navigator.vibrate?.(15); }
 
 // ========== App state ==========
 let currentDate = todayISO();
-let tempPhotos = []; // write page working photos (dataUrl)
+let tempPhotos = [];
+let modalOpenDate = null;
 
-// ========== UI: Pages ==========
+// ========== Pages ==========
 const pages = {
   home: $("pageHome"),
   write: $("pageWrite"),
   journal: $("pageJournal"),
-  view: $("pageView"),
   settings: $("pageSettings")
 };
 
@@ -143,6 +143,8 @@ function go(page){
   Object.values(pages).forEach(p => p.classList.remove("active"));
   pages[page].classList.add("active");
   document.querySelectorAll(".navbtn").forEach(b => b.classList.toggle("active", b.dataset.go === page));
+
+  if (page === "home") playHomeFlip();
   if (page === "journal") renderJournalList();
 }
 
@@ -153,6 +155,17 @@ document.querySelectorAll(".navbtn").forEach(btn=>{
     go(page);
   });
 });
+
+// ========== 翻頁感：首頁卡片 ==========
+function playHomeFlip(){
+  const cards = [$("homeBubbleCard"), $("taskCard"), $("homeHintCard")].filter(Boolean);
+  cards.forEach((c, i)=>{
+    c.classList.remove("flip-in");
+    // 讓動畫可以重新觸發
+    void c.offsetWidth;
+    setTimeout(()=> c.classList.add("flip-in"), i*60);
+  });
+}
 
 // ========== Date picker ==========
 $("dateText").textContent = prettyDate(currentDate);
@@ -168,13 +181,31 @@ function setDate(iso){
   $("dateText").textContent = prettyDate(currentDate);
   $("datePicker").value = currentDate;
 
-  // Home刷新
   renderHome();
-  // Write頁日期同步
   $("writeDate").value = currentDate;
+
+  // 如果人在首頁，日期切換也像翻頁
+  if (pages.home.classList.contains("active")) playHomeFlip();
 }
 
 // ========== Home ==========
+function getQuoteIndex(dateISO){
+  const map = loadJSON(KEY_QUOTEIDX, {});
+  if (typeof map[dateISO] === "number") return map[dateISO];
+  const idx = hashToIndex("QUOTE:"+dateISO, QUOTES.length);
+  map[dateISO] = idx;
+  saveJSON(KEY_QUOTEIDX, map);
+  return idx;
+}
+function getTaskIndex(dateISO){
+  const map = loadJSON(KEY_TASKIDX, {});
+  if (typeof map[dateISO] === "number") return map[dateISO];
+  const idx = hashToIndex("TASK:"+dateISO, TASKS.length);
+  map[dateISO] = idx;
+  saveJSON(KEY_TASKIDX, map);
+  return idx;
+}
+
 function renderHome(){
   const qIdx = getQuoteIndex(currentDate);
   $("quoteBubble").textContent = QUOTES[qIdx];
@@ -193,24 +224,7 @@ function renderHome(){
     : "今天就寫一句也可以：你最想感謝什麼？";
 }
 
-function getQuoteIndex(dateISO){
-  const map = loadJSON(KEY_QUOTEIDX, {});
-  if (typeof map[dateISO] === "number") return map[dateISO];
-  const idx = hashToIndex("QUOTE:"+dateISO, QUOTES.length);
-  map[dateISO] = idx;
-  saveJSON(KEY_QUOTEIDX, map);
-  return idx;
-}
-function getTaskIndex(dateISO){
-  const map = loadJSON(KEY_TASKIDX, {});
-  if (typeof map[dateISO] === "number") return map[dateISO];
-  const idx = hashToIndex("TASK:"+dateISO, TASKS.length);
-  map[dateISO] = idx;
-  saveJSON(KEY_TASKIDX, map);
-  return idx;
-}
-
-// 點熊熊換一句（不影響每天固定那句：我們改成「額外換句」只在當下顯示）
+// 點熊熊換一句（當下顯示）
 $("bearBtn").addEventListener("click", ()=>{
   const idx = Math.floor(Math.random() * QUOTES.length);
   $("quoteBubble").textContent = QUOTES[idx];
@@ -235,36 +249,64 @@ function copyText(t){
   }).catch(()=>{});
 }
 
-// 任務：完成
+// ✅ 任務完成：+1 + 打勾動效
 $("taskDoneBtn").addEventListener("click", ()=>{
   const doneMap = loadJSON(KEY_TASKDONE, {});
+  const already = !!doneMap[currentDate];
   doneMap[currentDate] = true;
   saveJSON(KEY_TASKDONE, doneMap);
+
   renderHome();
+  playTaskDoneFX(already);
   vibrate();
 });
 
-// 任務：換一個（只換今天的 idx）
+function playTaskDoneFX(alreadyDone){
+  const fx = $("taskFxLayer");
+  fx.innerHTML = "";
+
+  // 卡片微光
+  $("taskCard").classList.remove("task-done-glow");
+  void $("taskCard").offsetWidth;
+  $("taskCard").classList.add("task-done-glow");
+
+  // +1（如果已完成，再按就不重複+1也可以；你想一直顯示也行）
+  if (!alreadyDone){
+    const plus = document.createElement("div");
+    plus.className = "plus1";
+    plus.textContent = "+1";
+    fx.appendChild(plus);
+    setTimeout(()=> plus.remove(), 950);
+  }
+
+  // 打勾彈出
+  const check = document.createElement("div");
+  check.className = "check-pop";
+  check.textContent = "✅";
+  fx.appendChild(check);
+  setTimeout(()=> check.remove(), 700);
+}
+
+// 任務：換一個（重置完成狀態）
 $("taskSwapBtn").addEventListener("click", ()=>{
   const map = loadJSON(KEY_TASKIDX, {});
   const curr = typeof map[currentDate] === "number" ? map[currentDate] : getTaskIndex(currentDate);
+
   let next = Math.floor(Math.random() * TASKS.length);
   if (TASKS.length > 1) while (next === curr) next = Math.floor(Math.random() * TASKS.length);
+
   map[currentDate] = next;
   saveJSON(KEY_TASKIDX, map);
 
-  // 換任務時，把完成狀態重置（比較直覺）
   const doneMap = loadJSON(KEY_TASKDONE, {});
   doneMap[currentDate] = false;
   saveJSON(KEY_TASKDONE, doneMap);
 
   renderHome();
+  // 讓換任務也像翻頁一下
+  playHomeFlip();
   vibrate();
 });
-
-function vibrate(){
-  navigator.vibrate?.(15);
-}
 
 // ========== Write ==========
 $("writeDate").value = currentDate;
@@ -287,7 +329,6 @@ function syncWriteFormFromDate(){
   $("saveState").textContent = entry ? `（已載入 ${prettyDate(currentDate)} 的日記，可直接修改再儲存）` : "";
 }
 
-// 照片上傳 => 轉 base64
 $("photoInput").addEventListener("change", async (e)=>{
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
@@ -346,13 +387,13 @@ $("saveEntryBtn").addEventListener("click", ()=>{
     $("saveState").textContent = "✅ 已儲存！謝謝你把今天的幸福留住。";
     renderHome();
     vibrate();
-    setTimeout(()=> go("home"), 350);
+    go("home"); // 回首頁時會有翻頁感
   } catch (err) {
     $("saveState").textContent = "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。";
   }
 });
 
-// ========== Journal list / View ==========
+// ========== Journal list + Modal view ==========
 function renderJournalList(){
   const list = $("journalList");
   list.innerHTML = "";
@@ -378,48 +419,69 @@ function renderJournalList(){
       <div class="d">${prettyDate(d)} ${hasPhoto ? "📸" : ""}</div>
       <div class="s">${snippet ? snippet + (snippet.length>=40?"…":"") : "（這天你留下了沉默，也是一種記錄）"}</div>
     `;
-    item.addEventListener("click", ()=> openView(d));
+    item.addEventListener("click", ()=> openEntryModal(d));
     list.appendChild(item);
   });
 }
 
-function openView(dateISO){
+// ✅ Modal elements
+const modal = $("entryModal");
+const modalBackdrop = $("modalBackdrop");
+const modalCloseBtn = $("modalCloseBtn");
+
+function openEntryModal(dateISO){
   const entries = loadJSON(KEY_ENTRIES, {});
   const e = entries[dateISO];
   if (!e) return;
 
-  $("viewTitle").textContent = `📖 ${prettyDate(dateISO)} 的日記`;
+  modalOpenDate = dateISO;
 
-  $("view3things").textContent = e.threeThings || "（未填）";
-  $("viewMoment").textContent = e.moment || "（未填）";
-  $("viewSelf").textContent = e.selfTalk || "（未填）";
+  $("modalTitle").textContent = `📖 ${prettyDate(dateISO)} 的日記`;
+  $("modal3things").textContent = e.threeThings || "（未填）";
+  $("modalMoment").textContent = e.moment || "（未填）";
+  $("modalSelf").textContent = e.selfTalk || "（未填）";
 
-  const vp = $("viewPhotos");
-  vp.innerHTML = "";
+  const mp = $("modalPhotos");
+  mp.innerHTML = "";
   (e.photos || []).forEach(src=>{
     const div = document.createElement("div");
     div.className = "photo";
     div.innerHTML = `<img src="${src}" alt="photo">`;
-    vp.appendChild(div);
+    mp.appendChild(div);
   });
 
-  $("viewEditBtn").onclick = ()=>{
+  // Buttons
+  $("modalEditBtn").onclick = ()=>{
+    closeEntryModal();
     setDate(dateISO);
     go("write");
     syncWriteFormFromDate();
   };
 
-  $("viewDeleteBtn").onclick = ()=>{
+  $("modalDeleteBtn").onclick = ()=>{
     if (!confirm("確定要刪除這篇日記嗎？")) return;
     const entries2 = loadJSON(KEY_ENTRIES, {});
     delete entries2[dateISO];
     saveJSON(KEY_ENTRIES, entries2);
+    closeEntryModal();
     renderJournalList();
-    go("journal");
   };
 
-  go("view");
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden","false");
 }
+
+function closeEntryModal(){
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden","true");
+  modalOpenDate = null;
+}
+
+modalBackdrop.addEventListener("click", closeEntryModal);
+modalCloseBtn.addEventListener("click", closeEntryModal);
+window.addEventListener("keydown", (e)=>{
+  if (e.key === "Escape" && !modal.classList.contains("hidden")) closeEntryModal();
+});
 
 // ========== Settings ==========
 $("exportBtn").addEventListener("click", ()=>{
@@ -450,3 +512,4 @@ $("clearBtn").addEventListener("click", ()=>{
 setDate(todayISO());
 renderHome();
 syncWriteFormFromDate();
+playHomeFlip();
