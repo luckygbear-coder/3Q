@@ -290,7 +290,6 @@ function copyText(t){
 }
 
 // ========== 任務：每日固定 ==========
-const KEY_TASKIDX = "gb_taskidx_v1";
 function getTaskIndex(dateISO){
   const map = loadJSON(KEY_TASKIDX, {});
   if (typeof map[dateISO] === "number") return map[dateISO];
@@ -398,37 +397,7 @@ function renderRecentOnHome(){
   box.scrollLeft = 0;
 }
 
-  // ✅ 先顯示最新三筆（但容器可捲動看更多）
-  dates.forEach((d, idx)=>{
-    const e = entries[d];
-    const hasPhoto = (e.photos || []).length;
-    const snippet = (e.threeThings || e.moment || e.selfTalk || "").replace(/\n/g," ").slice(0,36);
 
-    const item = document.createElement("div");
-    item.className = "item";
-    item.innerHTML = `
-      <div class="d">${prettyDate(d)} ${hasPhoto ? "📸" : ""}</div>
-      <div class="s">${snippet ? snippet + (snippet.length>=36?"…":"") : "（這天你留下了沉默，也是一種記錄）"}</div>
-    `;
-
-    // ✅ 點選彈出 modal
-    item.addEventListener("click", ()=> openEntryModal(d));
-    box.appendChild(item);
-
-    // 視覺上「前三筆優先」，但保留全部讓你可捲動回看
-    if (idx === 2){
-      // 在第3筆後插入一個小提示（不阻止捲動）
-      const hint = document.createElement("div");
-      hint.className = "muted small";
-      hint.style.margin = "2px 2px 0";
-      hint.textContent = "⬇️ 往下滑可回看更多";
-      box.appendChild(hint);
-    }
-  });
-
-  // 初始定位：讓使用者一開始看到最新三筆
-  box.scrollTop = 0;
-}
 
 // ========== Write ==========
 $("writeDate").value = currentDate;
