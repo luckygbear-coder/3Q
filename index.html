@@ -1,181 +1,262 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#f4a63a" />
-  <title>感恩日記熊</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MBTI熊・冒險者人格圖鑑</title>
 
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="manifest" href="./mbti-manifest.webmanifest">
+  <meta name="theme-color" content="#f4a63a" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
   <div class="app-wrap">
-    <!-- Header -->
-    <header class="topbar">
+
+    <header class="topbar card">
       <div class="brand">
-        <!-- ✅ 左上角改成 images/bear.png（可被設定頁上傳替換） -->
-        <button class="avatar-btn" id="avatarBtn" title="點我換一句小語">
-          <img id="avatarImg" class="avatar-img" src="./images/bear.png" alt="熊熊大頭貼" />
+        <div class="title">🐻 MBTI熊・冒險者人格圖鑑</div>
+        <div class="subtitle">查人格｜看配對｜熊熊提醒</div>
+      </div>
+
+      <div class="mayor">
+        <button id="bearBtn" class="bear-btn" aria-label="點熊熊聽小語">
+          <img class="bear-img" src="./images/bear.png" alt="村長熊熊" />
         </button>
 
-        <div class="brand-text">
-          <!-- ✅ 變成 IG 連結按鈕 -->
-          <a class="title-link" href="https://instagram.com/luckygbear" target="_blank" rel="noopener">
-            感恩日記熊
-            <span class="ig-tag">@luckygbear</span>
-          </a>
-
-          <button class="datebtn" id="datePickBtn">
-            <span id="dateText"></span> ▾
-          </button>
+        <div class="bubble-wrap">
+          <div id="bubble" class="bubble" role="status" aria-live="polite">
+            點一下熊熊，我會問你一個小問題 🫶
+          </div>
+          <div class="bubble-tip">（長按可複製小語）</div>
         </div>
       </div>
-
-      <input id="datePicker" class="datePicker" type="date" />
     </header>
 
-    <!-- Pages -->
-    <main class="pages">
+    <main class="main">
+      <section class="card">
+        <div class="section-title">🔎 查詢人格</div>
 
-      <!-- Home -->
-      <section class="page active" id="pageHome">
-        <!-- 小語 -->
-        <div class="card bubble-wrap flip-card" id="homeBubbleCard">
-          <div class="bubble" id="quoteBubble" title="長按可複製"></div>
-          <div class="bubble-hint">長按可複製小語｜點熊熊頭像可換一句</div>
-        </div>
-
-        <!-- 今日任務 -->
-        <div class="card task-card flip-card" id="taskCard">
-          <div class="card-title">🌱 今日感恩任務</div>
-          <div class="task-text" id="taskText"></div>
-
-          <div class="task-actions">
-            <button class="btn primary" id="taskDoneBtn">完成打勾 ✅</button>
-            <button class="btn" id="taskSwapBtn">換一個 🔄</button>
-          </div>
-
-          <div class="task-state" id="taskState"></div>
-          <div class="fx-layer" id="taskFxLayer" aria-hidden="true"></div>
-        </div>
-
-        <!-- ✅ 今日小提示：可點換 -->
-        <div class="card mini flip-card tip-card" id="homeTipCard" title="點一下換提示">
-          <div class="card-title">📌 今日小提示（點一下換）</div>
-          <div class="muted" id="tipText"></div>
-        </div>
-
-        <!-- ✅ 首頁新增：最近日記回顧（可捲動） -->
-        <div class="card flip-card" id="recentCard">
-          <div class="card-title">📚 最近日記回顧</div>
-          <div class="muted small">顯示最新三筆；左右滑動可回看更多；點一下展開。</div>          <div class="recent-list" id="recentList"></div>
-        </div>
-      </section>
-
-      <!-- Write -->
-      <section class="page" id="pageWrite">
-        <div class="card">
-          <div class="card-title">✍️ 寫下今天的感恩</div>
-
-          <label class="label">日期</label>
-          <input type="date" id="writeDate" class="input" />
-
-          <label class="label">我今天感謝的 3 件小事</label>
-          <textarea id="field3things" class="textarea" rows="4" placeholder="例如：1) 起床喝溫水 2) 朋友的訊息 3) 夕陽很美"></textarea>
-
-          <label class="label">今天最幸福的一刻是…</label>
-          <textarea id="fieldMoment" class="textarea" rows="3" placeholder="把那個瞬間記下來"></textarea>
-
-          <label class="label">我想對自己說…</label>
-          <textarea id="fieldSelf" class="textarea" rows="3" placeholder="辛苦了、謝謝你、你很棒…"></textarea>
-
-          <label class="label">上傳照片（最多 3 張）</label>
-          <input type="file" id="photoInput" class="input" accept="image/*" multiple />
-          <div class="photo-grid" id="photoGrid"></div>
-
-          <div class="row">
-            <button class="btn primary full" id="saveEntryBtn">儲存今天的日記 💛</button>
-          </div>
-          <div class="muted" id="saveState"></div>
-        </div>
-      </section>
-
-      <!-- Journal -->
-      <section class="page" id="pageJournal">
-        <div class="card">
-          <div class="card-title">📚 我的日記本</div>
-          <div class="muted">點一篇就能回看你走過的幸福（彈跳視窗）。</div>
-        </div>
-        <div id="journalList" class="list"></div>
-      </section>
-
-      <!-- Settings -->
-      <section class="page" id="pageSettings">
-        <div class="card">
-          <div class="card-title">⚙️ 設定</div>
-
-          <!-- ✅ 上傳自訂大頭貼 -->
-          <div class="setting-block">
-            <div class="label">大頭貼（可上傳自己的照片）</div>
-            <input type="file" id="avatarInput" class="input" accept="image/*" />
-            <div class="row">
-              <button class="btn full" id="resetAvatarBtn">還原預設熊熊頭像</button>
-            </div>
-            <div class="muted small">提示：照片會儲存在本機（localStorage），換手機需重新上傳。</div>
-          </div>
-
-          <hr class="sep" />
-
-          <button class="btn full" id="exportBtn">匯出 JSON（複製到剪貼簿）</button>
-          <button class="btn danger full" id="clearBtn">清除所有資料</button>
-          <div class="muted small">（之後要升級雲端同步我也可以幫你加）</div>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- Bottom Nav -->
-    <nav class="bottom-nav">
-      <button class="navbtn active" data-go="home">🏠<span>首頁</span></button>
-      <button class="navbtn" data-go="write">＋<span>寫日記</span></button>
-      <button class="navbtn" data-go="journal">📚<span>日記本</span></button>
-      <button class="navbtn" data-go="settings">⚙️<span>設定</span></button>
-    </nav>
-  </div>
-
-  <!-- Modal：日記閱讀彈跳卡片 -->
-  <div class="modal hidden" id="entryModal" aria-hidden="true">
-    <div class="modal-backdrop" id="modalBackdrop"></div>
-    <div class="modal-sheet" role="dialog" aria-modal="true">
-      <div class="modal-handle"></div>
-      <div class="modal-header">
-        <div class="modal-title" id="modalTitle">📖 日記</div>
-        <button class="modal-close" id="modalCloseBtn" aria-label="關閉">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="photo-grid" id="modalPhotos"></div>
-
-        <div class="block">
-          <div class="label">我今天感謝的 3 件小事</div>
-          <div class="text" id="modal3things"></div>
-        </div>
-        <div class="block">
-          <div class="label">今天最幸福的一刻</div>
-          <div class="text" id="modalMoment"></div>
-        </div>
-        <div class="block">
-          <div class="label">我想對自己說</div>
-          <div class="text" id="modalSelf"></div>
+        <div class="row">
+          <label class="field">
+            <div class="label">輸入 MBTI（例如 INFP）</div>
+            <input id="typeInput" class="input" maxlength="4" placeholder="例如：ENFJ / ISTP" />
+          </label>
+          <button id="goTypeBtn" class="btn primary">查看</button>
         </div>
 
         <div class="row">
-          <button class="btn" id="modalEditBtn">編輯</button>
-          <button class="btn danger" id="modalDeleteBtn">刪除</button>
+          <label class="field">
+            <div class="label">或搜尋其他人格</div>
+            <select id="typeSelect" class="select"></select>
+          </label>
+          <button id="randomBtn" class="btn">隨機</button>
         </div>
+
+        <div class="row">
+          <button id="openDetailBtn" class="btn wide">📘 開啟人格詳細解說</button>
+        </div>
+
+        <div class="hint small">
+          💡 MBTI 是「偏好」不是能力高低；用來理解彼此，不用來貼標籤。
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">🧪 測驗入口</div>
+
+        <label class="field">
+          <div class="label">MBTI 測驗網站（可改成你想放的連結）</div>
+          <input id="testUrl" class="input" placeholder="貼上測驗網址（例如 16personalities）" />
+        </label>
+
+        <div class="row">
+          <button id="openTestBtn" class="btn primary wide">前往測驗</button>
+        </div>
+
+        <div class="mini-actions">
+          <button id="copyTypeBtn" class="chip">📌 複製目前人格</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="dock">
+      <button id="dockPair" class="dock-btn active">🤝 配對</button>
+      <a class="dock-btn" href="https://instagram.com/luckygbear" target="_blank" rel="noopener">📷 追蹤熊熊</a>
+      <button id="dockNotebook" class="dock-btn">📓 筆記本</button>
+    </nav>
+
+  </div>
+
+  <!-- Modal：人格詳細解說 -->
+  <div id="modalType" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div class="modal-title" id="modalTypeTitle">人格詳細解說</div>
+        <button class="modal-close" data-close="1">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="modalTypeContent" class="modal-content"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="1">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal：配對相處指南 -->
+  <div id="modalPair" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div class="modal-title" id="modalPairTitle">🤝 配對相處指南</div>
+        <button class="modal-close" data-close="1">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="pair-setup card-soft">
+          <div class="row two">
+            <label class="field">
+              <div class="label">你（或 A）</div>
+              <select id="pairA" class="select"></select>
+            </label>
+
+            <label class="field">
+              <div class="label">對方（或 B）</div>
+              <select id="pairB" class="select"></select>
+            </label>
+          </div>
+
+          <div class="row">
+            <label class="field">
+              <div class="label">情境</div>
+              <div class="seg">
+                <button class="seg-btn active" data-mode="work">職場</button>
+                <button class="seg-btn" data-mode="love">親密</button>
+              </div>
+            </label>
+
+            <button id="pairSwapBtn" class="btn">🔁 交換</button>
+            <button id="pairBtn" class="btn primary">分析</button>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:10px;">📌 分析結果</div>
+        <div id="modalPairContent" class="modal-content">請先選擇兩種人格，按「分析」。</div>
+
+        <!-- ✅ 一鍵存筆記 -->
+        <div class="row" style="margin-top:10px;">
+          <button id="pairSaveBtn" class="btn primary wide">💾 一鍵存進筆記本</button>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" data-close="1">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal：筆記本 -->
+  <div id="modalNotebook" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <div class="modal-title">📓 筆記本（人物 / 配對紀錄）</div>
+        <button class="modal-close" data-close="1">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="note-form card-soft">
+          <div class="row two">
+            <label class="field">
+              <div class="label">暱稱 / 名字</div>
+              <input id="noteName" class="input" placeholder="例如：媽媽 / 阿哲 / 同事小美" />
+            </label>
+
+            <label class="field">
+              <div class="label">分類</div>
+              <select id="noteCategory" class="select">
+                <option value="family">家人</option>
+                <option value="friend">朋友</option>
+                <option value="coworker">同事</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="row two">
+            <label class="field">
+              <div class="label">他/她的 MBTI</div>
+              <select id="noteType" class="select"></select>
+            </label>
+
+            <!-- ✅ 星座欄位 -->
+            <label class="field">
+              <div class="label">星座（可留空）</div>
+              <input id="noteZodiac" class="input" placeholder="例如：天秤座" />
+            </label>
+          </div>
+
+          <label class="field">
+            <div class="label">備註（相處地雷 / 喜歡的溝通方式 / 你想記的）</div>
+            <textarea id="noteMemo" class="textarea" rows="3" placeholder="例如：不喜歡臨時改時間；喜歡先說結論；需要被肯定…"></textarea>
+          </label>
+
+          <div class="row">
+            <button id="noteSaveBtn" class="btn primary wide">➕ 新增人物筆記</button>
+          </div>
+
+          <div class="hint small">
+            💾 會自動儲存在手機（localStorage），也可用下方匯出/匯入備份。
+          </div>
+        </div>
+
+        <!-- ✅ 匯出/匯入 -->
+        <div class="card-soft" style="margin-top:10px;">
+          <div class="section-title">📦 備份</div>
+          <div class="row">
+            <button id="noteExportBtn" class="btn">匯出 JSON</button>
+            <button id="noteImportBtn" class="btn">匯入 JSON</button>
+          </div>
+
+          <input id="noteImportFile" type="file" accept="application/json,.json" style="display:none" />
+
+          <label class="field" style="margin-top:8px;">
+            <div class="label">或貼上 JSON（可選）</div>
+            <textarea id="noteImportText" class="textarea" rows="4" placeholder='貼上匯出的 JSON 內容（選用）'></textarea>
+          </label>
+          <div class="row">
+            <button id="noteImportTextBtn" class="btn primary wide">從貼上內容匯入</button>
+          </div>
+        </div>
+
+        <div class="note-filter card-soft" style="margin-top:10px;">
+          <div class="row">
+            <label class="field">
+              <div class="label">搜尋（名字 / MBTI / 星座 / 備註 / 配對）</div>
+              <input id="noteSearch" class="input" placeholder="輸入關鍵字…" />
+            </label>
+          </div>
+
+          <div class="mini-actions">
+            <button class="chip chip-filter active" data-filter="all">全部</button>
+            <button class="chip chip-filter" data-filter="family">家人</button>
+            <button class="chip chip-filter" data-filter="friend">朋友</button>
+            <button class="chip chip-filter" data-filter="coworker">同事</button>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:10px;">📌 已記錄清單</div>
+        <div id="noteList" class="note-list">尚未新增任何筆記。</div>
+      </div>
+
+      <div class="modal-foot">
+        <button id="noteClearBtn" class="btn">清空全部</button>
+        <button class="btn" data-close="1">關閉</button>
       </div>
     </div>
   </div>
