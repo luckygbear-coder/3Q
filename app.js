@@ -3,7 +3,7 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
 }
 
-// ========== 文案：30句支持語 ==========
+// ========== 文案：支持語（✅刪掉指定那句） ==========
 const QUOTES = [
   "🐻 你願意記錄今天，本身就值得被感謝。",
   "🐻 不是每天都完美，但你每天都很努力。",
@@ -26,7 +26,7 @@ const QUOTES = [
   "🐻 今天能記下一句話，也很棒。",
   "🐻 你值得被好好對待，包括被自己。",
   "🐻 有些日子很輕，但依然重要。",
-  "🐻 謝謝你沒有放棄自己。",
+  // ❌ 已移除：「謝謝你沒有放棄自己。」
   "🐻 你的心，比你想像的還堅強。",
   "🐻 幸福有很多樣子，你正在發現它。",
   "🐻 你不是孤單的，我在。",
@@ -37,7 +37,21 @@ const QUOTES = [
   "🐻 謝謝你，願意活在這個世界。"
 ];
 
-// ========== 50個任務 ==========
+// ========== 10 個今日小提示（可點換 / 刷新換） ==========
+const TIPS = [
+  "今天就寫一句也可以：你最想感謝什麼？",
+  "回想一個「被你忽略的小幸福」，把它寫下來。",
+  "把今天最溫柔的一句話，送給自己。",
+  "謝謝你願意照顧自己的心，哪怕只是一點點。",
+  "想一個你很珍惜的人，感謝他出現在你生命裡。",
+  "把今天最想留住的一幕，寫成一句話。",
+  "如果今天很難，也可以感謝「你撐過來了」。",
+  "寫下：今天我做得最好的 1 件事。",
+  "感謝你的身體：它一直在默默保護你。",
+  "把今天的感恩，變成明天的勇氣。"
+];
+
+// ========== 50 個任務 ==========
 const TASKS = [
   "起床喝一杯溫水，美好的一天開始了！",
   "對自己說一句「辛苦了」。",
@@ -95,7 +109,7 @@ const TASKS = [
 const KEY_ENTRIES = "gb_entries_v1";
 const KEY_TASKDONE = "gb_taskdone_v1";
 const KEY_TASKIDX  = "gb_taskidx_v1";
-const KEY_QUOTEIDX = "gb_quoteidx_v1";
+const KEY_AVATAR   = "gb_avatar_v1";
 
 // ========== Helpers ==========
 const $ = (id) => document.getElementById(id);
@@ -118,18 +132,25 @@ function loadJSON(key, fallback){
 function saveJSON(key, obj){
   localStorage.setItem(key, JSON.stringify(obj));
 }
-function hashToIndex(str, mod){
-  let h = 0;
-  for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
-  return h % mod;
+function vibrate(){ navigator.vibrate?.(15); }
+
+function pickRandom(arr){
+  return arr[Math.floor(Math.random()*arr.length)];
 }
 function clampPhotos(arr){ return arr.slice(0,3); }
-function vibrate(){ navigator.vibrate?.(15); }
+
+async function fileToDataURL(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 // ========== App state ==========
 let currentDate = todayISO();
 let tempPhotos = [];
-let modalOpenDate = null;
 
 // ========== Pages ==========
 const pages = {
@@ -144,7 +165,7 @@ function go(page){
   pages[page].classList.add("active");
   document.querySelectorAll(".navbtn").forEach(b => b.classList.toggle("active", b.dataset.go === page));
 
-  if (page === "home") playHomeFlip();
+  if (page === "home") { playHomeFlip(); renderHome(); }
   if (page === "journal") renderJournalList();
 }
 
@@ -156,12 +177,11 @@ document.querySelectorAll(".navbtn").forEach(btn=>{
   });
 });
 
-// ========== 翻頁感：首頁卡片 ==========
+// ========== 翻頁感：首頁 ==========
 function playHomeFlip(){
-  const cards = [$("homeBubbleCard"), $("taskCard"), $("homeHintCard")].filter(Boolean);
+  const cards = [$("homeBubbleCard"), $("taskCard"), $("homeTipCard"), $("recentCard")].filter(Boolean);
   cards.forEach((c, i)=>{
     c.classList.remove("flip-in");
-    // 讓動畫可以重新觸發
     void c.offsetWidth;
     setTimeout(()=> c.classList.add("flip-in"), i*60);
   });
@@ -180,36 +200,37 @@ function setDate(iso){
   currentDate = iso;
   $("dateText").textContent = prettyDate(currentDate);
   $("datePicker").value = currentDate;
-
-  renderHome();
   $("writeDate").value = currentDate;
 
-  // 如果人在首頁，日期切換也像翻頁
+  // 日期切換 -> 首頁內容刷新
+  renderHome();
   if (pages.home.classList.contains("active")) playHomeFlip();
 }
 
-// ========== Home ==========
-function getQuoteIndex(dateISO){
-  const map = loadJSON(KEY_QUOTEIDX, {});
-  if (typeof map[dateISO] === "number") return map[dateISO];
-  const idx = hashToIndex("QUOTE:"+dateISO, QUOTES.length);
-  map[dateISO] = idx;
-  saveJSON(KEY_QUOTEIDX, map);
-  return idx;
+// ========== 头像：預設 images/bear.png + 可自訂 ==========
+function loadAvatar(){
+  const saved = localStorage.getItem(KEY_AVATAR);
+  if (saved && saved.startsWith("data:image/")) {
+    $("avatarImg").src = saved;
+  } else {
+    $("avatarImg").src = "./images/bear.png";
+  }
 }
-function getTaskIndex(dateISO){
-  const map = loadJSON(KEY_TASKIDX, {});
-  if (typeof map[dateISO] === "number") return map[dateISO];
-  const idx = hashToIndex("TASK:"+dateISO, TASKS.length);
-  map[dateISO] = idx;
-  saveJSON(KEY_TASKIDX, map);
-  return idx;
-}
+loadAvatar();
 
+// 點大頭貼：換小語
+$("avatarBtn").addEventListener("click", ()=>{
+  setQuoteRandom(true);
+  vibrate();
+});
+
+// ========== Home：小語 / 任務 / 小提示 / 最近日記 ==========
 function renderHome(){
-  const qIdx = getQuoteIndex(currentDate);
-  $("quoteBubble").textContent = QUOTES[qIdx];
+  // ✅ 每次刷新（renderHome）都隨機
+  setQuoteRandom(false);
+  setTipRandom(false);
 
+  // 任務顯示（仍用每天固定任務 idx）
   const tIdx = getTaskIndex(currentDate);
   $("taskText").textContent = TASKS[tIdx];
 
@@ -217,17 +238,35 @@ function renderHome(){
   const done = !!doneMap[currentDate];
   $("taskState").textContent = done ? "✅ 你完成了今天的小任務！謝謝你照顧自己。" : "（完成後打勾，沒完成也沒關係）";
 
-  const entries = loadJSON(KEY_ENTRIES, {});
-  const hasEntry = !!entries[currentDate];
-  $("todayHint").textContent = hasEntry
-    ? "你今天已經寫過日記了。要不要翻翻過去的你？"
-    : "今天就寫一句也可以：你最想感謝什麼？";
+  renderRecentOnHome();
 }
 
-// 點熊熊換一句（當下顯示）
-$("bearBtn").addEventListener("click", ()=>{
-  const idx = Math.floor(Math.random() * QUOTES.length);
-  $("quoteBubble").textContent = QUOTES[idx];
+// 小語：每次 renderHome 隨機；也可手動換
+function setQuoteRandom(animate){
+  const q = pickRandom(QUOTES);
+  $("quoteBubble").textContent = q;
+
+  if (animate){
+    $("homeBubbleCard").classList.remove("flip-in");
+    void $("homeBubbleCard").offsetWidth;
+    $("homeBubbleCard").classList.add("flip-in");
+  }
+}
+
+// 小提示：每次 renderHome 隨機；點卡片換
+function setTipRandom(animate){
+  const t = pickRandom(TIPS);
+  $("tipText").textContent = t;
+
+  if (animate){
+    $("homeTipCard").classList.remove("flip-in");
+    void $("homeTipCard").offsetWidth;
+    $("homeTipCard").classList.add("flip-in");
+  }
+}
+
+$("homeTipCard").addEventListener("click", ()=>{
+  setTipRandom(true);
   vibrate();
 });
 
@@ -244,9 +283,25 @@ $("quoteBubble").addEventListener("mouseup", ()=> clearTimeout(pressTimer));
 
 function copyText(t){
   navigator.clipboard?.writeText(t).then(()=>{
-    $("todayHint").textContent = "已複製熊熊小語 💛";
+    // 輕提示（不另開區塊）
+    $("tipText").textContent = "已複製熊熊小語 💛（點這裡可換提示）";
     vibrate();
   }).catch(()=>{});
+}
+
+// ========== 任務：每日固定 ==========
+const KEY_TASKIDX = "gb_taskidx_v1";
+function getTaskIndex(dateISO){
+  const map = loadJSON(KEY_TASKIDX, {});
+  if (typeof map[dateISO] === "number") return map[dateISO];
+  // 可重現 hash：讓每天固定同一個任務
+  let h = 0;
+  const s = "TASK:"+dateISO;
+  for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+  const idx = h % TASKS.length;
+  map[dateISO] = idx;
+  saveJSON(KEY_TASKIDX, map);
+  return idx;
 }
 
 // ✅ 任務完成：+1 + 打勾動效
@@ -265,12 +320,10 @@ function playTaskDoneFX(alreadyDone){
   const fx = $("taskFxLayer");
   fx.innerHTML = "";
 
-  // 卡片微光
   $("taskCard").classList.remove("task-done-glow");
   void $("taskCard").offsetWidth;
   $("taskCard").classList.add("task-done-glow");
 
-  // +1（如果已完成，再按就不重複+1也可以；你想一直顯示也行）
   if (!alreadyDone){
     const plus = document.createElement("div");
     plus.className = "plus1";
@@ -279,7 +332,6 @@ function playTaskDoneFX(alreadyDone){
     setTimeout(()=> plus.remove(), 950);
   }
 
-  // 打勾彈出
   const check = document.createElement("div");
   check.className = "check-pop";
   check.textContent = "✅";
@@ -287,7 +339,7 @@ function playTaskDoneFX(alreadyDone){
   setTimeout(()=> check.remove(), 700);
 }
 
-// 任務：換一個（重置完成狀態）
+// 任務：換一個（重置完成）
 $("taskSwapBtn").addEventListener("click", ()=>{
   const map = loadJSON(KEY_TASKIDX, {});
   const curr = typeof map[currentDate] === "number" ? map[currentDate] : getTaskIndex(currentDate);
@@ -303,10 +355,57 @@ $("taskSwapBtn").addEventListener("click", ()=>{
   saveJSON(KEY_TASKDONE, doneMap);
 
   renderHome();
-  // 讓換任務也像翻頁一下
   playHomeFlip();
   vibrate();
 });
+
+// ========== 首頁最近日記回顧 ==========
+function renderRecentOnHome(){
+  const box = $("recentList");
+  box.innerHTML = "";
+
+  const entries = loadJSON(KEY_ENTRIES, {});
+  const dates = Object.keys(entries).sort((a,b)=> b.localeCompare(a));
+
+  if (!dates.length){
+    const empty = document.createElement("div");
+    empty.className = "muted";
+    empty.textContent = "還沒有日記～從今天開始，寫一句也可以 💛";
+    box.appendChild(empty);
+    return;
+  }
+
+  // ✅ 先顯示最新三筆（但容器可捲動看更多）
+  dates.forEach((d, idx)=>{
+    const e = entries[d];
+    const hasPhoto = (e.photos || []).length;
+    const snippet = (e.threeThings || e.moment || e.selfTalk || "").replace(/\n/g," ").slice(0,36);
+
+    const item = document.createElement("div");
+    item.className = "item";
+    item.innerHTML = `
+      <div class="d">${prettyDate(d)} ${hasPhoto ? "📸" : ""}</div>
+      <div class="s">${snippet ? snippet + (snippet.length>=36?"…":"") : "（這天你留下了沉默，也是一種記錄）"}</div>
+    `;
+
+    // ✅ 點選彈出 modal
+    item.addEventListener("click", ()=> openEntryModal(d));
+    box.appendChild(item);
+
+    // 視覺上「前三筆優先」，但保留全部讓你可捲動回看
+    if (idx === 2){
+      // 在第3筆後插入一個小提示（不阻止捲動）
+      const hint = document.createElement("div");
+      hint.className = "muted small";
+      hint.style.margin = "2px 2px 0";
+      hint.textContent = "⬇️ 往下滑可回看更多";
+      box.appendChild(hint);
+    }
+  });
+
+  // 初始定位：讓使用者一開始看到最新三筆
+  box.scrollTop = 0;
+}
 
 // ========== Write ==========
 $("writeDate").value = currentDate;
@@ -343,15 +442,6 @@ $("photoInput").addEventListener("change", async (e)=>{
   e.target.value = "";
 });
 
-function fileToDataURL(file){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = ()=> resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function renderPhotoGrid(){
   const grid = $("photoGrid");
   grid.innerHTML = "";
@@ -385,15 +475,14 @@ $("saveEntryBtn").addEventListener("click", ()=>{
   try {
     saveJSON(KEY_ENTRIES, entries);
     $("saveState").textContent = "✅ 已儲存！謝謝你把今天的幸福留住。";
-    renderHome();
+    go("home");
     vibrate();
-    go("home"); // 回首頁時會有翻頁感
   } catch (err) {
     $("saveState").textContent = "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。";
   }
 });
 
-// ========== Journal list + Modal view ==========
+// ========== Journal list + Modal ==========
 function renderJournalList(){
   const list = $("journalList");
   list.innerHTML = "";
@@ -412,7 +501,7 @@ function renderJournalList(){
   dates.forEach(d=>{
     const e = entries[d];
     const hasPhoto = (e.photos || []).length;
-    const snippet = (e.threeThings || e.moment || e.selfTalk || "").slice(0,40);
+    const snippet = (e.threeThings || e.moment || e.selfTalk || "").replace(/\n/g," ").slice(0,40);
     const item = document.createElement("div");
     item.className = "item";
     item.innerHTML = `
@@ -424,7 +513,7 @@ function renderJournalList(){
   });
 }
 
-// ✅ Modal elements
+// Modal elements
 const modal = $("entryModal");
 const modalBackdrop = $("modalBackdrop");
 const modalCloseBtn = $("modalCloseBtn");
@@ -433,8 +522,6 @@ function openEntryModal(dateISO){
   const entries = loadJSON(KEY_ENTRIES, {});
   const e = entries[dateISO];
   if (!e) return;
-
-  modalOpenDate = dateISO;
 
   $("modalTitle").textContent = `📖 ${prettyDate(dateISO)} 的日記`;
   $("modal3things").textContent = e.threeThings || "（未填）";
@@ -450,7 +537,6 @@ function openEntryModal(dateISO){
     mp.appendChild(div);
   });
 
-  // Buttons
   $("modalEditBtn").onclick = ()=>{
     closeEntryModal();
     setDate(dateISO);
@@ -464,31 +550,53 @@ function openEntryModal(dateISO){
     delete entries2[dateISO];
     saveJSON(KEY_ENTRIES, entries2);
     closeEntryModal();
-    renderJournalList();
+    renderHome();
+    if (pages.journal.classList.contains("active")) renderJournalList();
   };
 
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden","false");
 }
-
 function closeEntryModal(){
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden","true");
-  modalOpenDate = null;
 }
-
 modalBackdrop.addEventListener("click", closeEntryModal);
 modalCloseBtn.addEventListener("click", closeEntryModal);
 window.addEventListener("keydown", (e)=>{
   if (e.key === "Escape" && !modal.classList.contains("hidden")) closeEntryModal();
 });
 
-// ========== Settings ==========
+// ========== Settings：上傳頭像 ==========
+$("avatarInput").addEventListener("change", async (e)=>{
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try{
+    const dataUrl = await fileToDataURL(file);
+    localStorage.setItem(KEY_AVATAR, dataUrl);
+    loadAvatar();
+    alert("已更新大頭貼 ✅");
+  }catch{
+    alert("上傳失敗，請換一張照片再試一次。");
+  }finally{
+    e.target.value = "";
+  }
+});
+
+$("resetAvatarBtn").addEventListener("click", ()=>{
+  localStorage.removeItem(KEY_AVATAR);
+  loadAvatar();
+  alert("已還原預設熊熊頭像 ✅");
+});
+
+// ========== Settings：匯出/清除 ==========
 $("exportBtn").addEventListener("click", ()=>{
   const payload = {
     entries: loadJSON(KEY_ENTRIES, {}),
     taskDone: loadJSON(KEY_TASKDONE, {}),
     taskIdx: loadJSON(KEY_TASKIDX, {}),
+    avatar: localStorage.getItem(KEY_AVATAR) ? "(dataUrl omitted)" : null,
     exportedAt: new Date().toISOString()
   };
   const text = JSON.stringify(payload, null, 2);
@@ -501,7 +609,7 @@ $("exportBtn").addEventListener("click", ()=>{
 
 $("clearBtn").addEventListener("click", ()=>{
   if (!confirm("確定要清除所有資料嗎？（無法復原）")) return;
-  [KEY_ENTRIES, KEY_TASKDONE, KEY_TASKIDX, KEY_QUOTEIDX].forEach(k=> localStorage.removeItem(k));
+  [KEY_ENTRIES, KEY_TASKDONE, KEY_TASKIDX].forEach(k=> localStorage.removeItem(k));
   tempPhotos = [];
   syncWriteFormFromDate();
   renderHome();
