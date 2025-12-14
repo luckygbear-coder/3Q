@@ -3,7 +3,7 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
 }
 
-// ========== 文案：支持語 ==========
+// ========== 文案 ==========
 const QUOTES = [
   "🐻 你願意記錄今天，本身就值得被感謝。",
   "🐻 不是每天都完美，但你每天都很努力。",
@@ -23,7 +23,7 @@ const QUOTES = [
   "🐻 你願意回頭看看幸福，真的很溫柔。",
   "🐻 你的努力，我都看見了。",
   "🐻 慢慢寫、慢慢活，都沒關係。",
-  "🐻 今天能記下一句話，也很棒。",
+  "🐻 今天能記下一句也很棒。",
   "🐻 你值得被好好對待，包括被自己。",
   "🐻 有些日子很輕，但依然重要。",
   "🐻 你的心，比你想像的還堅強。",
@@ -36,21 +36,19 @@ const QUOTES = [
   "🐻 謝謝你，願意活在這個世界。"
 ];
 
-// ========== 10 個今日小提示 ==========
 const TIPS = [
   "今天就寫一句也可以：你最想感謝什麼？",
-  "回想一個「被你忽略的小幸福」，把它寫下來。",
+  "回想一個被你忽略的小幸福，把它寫下來。",
   "把今天最溫柔的一句話，送給自己。",
   "謝謝你願意照顧自己的心，哪怕只是一點點。",
   "想一個你很珍惜的人，感謝他出現在你生命裡。",
   "把今天最想留住的一幕，寫成一句話。",
-  "如果今天很難，也可以感謝「你撐過來了」。",
+  "如果今天很難，也可以感謝你撐過來了。",
   "寫下：今天我做得最好的 1 件事。",
   "感謝你的身體：它一直在默默保護你。",
   "把今天的感恩，變成明天的勇氣。"
 ];
 
-// ========== 50 個任務 ==========
 const TASKS = [
   "起床喝一杯溫水，美好的一天開始了！",
   "對自己說一句「辛苦了」。",
@@ -75,7 +73,7 @@ const TASKS = [
   "對今天的自己不責怪。",
   "想一件過去曾撐過來的事。",
   "允許今天的自己慢一點。",
-  "感謝一件「看似理所當然」的事。",
+  "感謝一件看似理所當然的事。",
   "關掉不必要的煩惱 5 分鐘。",
   "寫下一個你期待的小事情。",
   "感謝你仍願意嘗試。",
@@ -85,7 +83,6 @@ const TASKS = [
   "感謝今天有地方可以休息。",
   "想起一個曾讓你感動的瞬間。",
   "慢慢吃一口食物，感受味道。",
-  "感謝今天沒有放棄的自己。",
   "為自己做一件小小舒服的事。",
   "把肩膀放鬆一下。",
   "想一件你其實很努力的事。",
@@ -101,7 +98,9 @@ const TASKS = [
   "感謝今天能好好休息。",
   "對未來的自己說一句祝福。",
   "感謝這本日記陪著你。",
-  "告訴自己：「我還在路上。」"
+  "告訴自己：「我還在路上。」",
+  "把今天的一件小成功寫下來。",
+  "對身邊的一個人說聲謝謝。"
 ];
 
 // ========== Storage keys ==========
@@ -112,23 +111,7 @@ const KEY_AVATAR   = "gb_avatar_v1";
 
 // ========== Helpers ==========
 const $ = (id) => document.getElementById(id);
-const exists = (el) => !!el;
-
-function safeText(id, text){
-  const el = $(id);
-  if (el) el.textContent = text;
-}
-function safeValue(id, val){
-  const el = $(id);
-  if (el) el.value = val;
-}
-function safeOn(id, event, handler){
-  const el = $(id);
-  if (el) el.addEventListener(event, handler);
-}
-function safeOnEl(el, event, handler){
-  if (el) el.addEventListener(event, handler);
-}
+const safeOn = (id, evt, fn) => { const el = $(id); if (el) el.addEventListener(evt, fn); };
 
 function todayISO(){
   const d = new Date();
@@ -138,7 +121,6 @@ function todayISO(){
   return `${yyyy}-${mm}-${dd}`;
 }
 function prettyDate(iso){
-  if (!iso || !iso.includes("-")) return iso || "";
   const [y,m,d] = iso.split("-");
   return `${y}/${m}/${d}`;
 }
@@ -166,36 +148,26 @@ async function fileToDataURL(file){
 let currentDate = todayISO();
 let tempPhotos = [];
 
-// ========== Pages (允許某些頁不存在也不爆) ==========
-function getPages(){
-  return {
-    home: $("pageHome"),
-    write: $("pageWrite"),
-    journal: $("pageJournal"),
-    settings: $("pageSettings")
-  };
-}
+// ========== Pages ==========
+const pages = {
+  home: $("pageHome"),
+  write: $("pageWrite"),
+  journal: $("pageJournal"),
+  settings: $("pageSettings")
+};
 
 function go(page){
-  const pages = getPages();
-  Object.entries(pages).forEach(([k, el])=>{
-    if (el) el.classList.toggle("active", k === page);
-  });
+  Object.values(pages).forEach(p => p && p.classList.remove("active"));
+  pages[page] && pages[page].classList.add("active");
 
-  document.querySelectorAll(".navbtn").forEach(b=>{
-    b.classList.toggle("active", b.dataset.go === page);
-  });
-
+  document.querySelectorAll(".navbtn").forEach(b => b.classList.toggle("active", b.dataset.go === page));
   if (page === "home") { playHomeFlip(); renderHome(); }
   if (page === "journal") renderJournalList();
 }
 
 // ========== 翻頁感 ==========
 function playHomeFlip(){
-  const cards = ["homeBubbleCard","taskCard","homeTipCard","recentCard"]
-    .map(id=>$(id))
-    .filter(Boolean);
-
+  const cards = ["homeBubbleCard","taskCard","homeTipCard","recentCard"].map($).filter(Boolean);
   cards.forEach((c, i)=>{
     c.classList.remove("flip-in");
     void c.offsetWidth;
@@ -214,10 +186,9 @@ function loadAvatar(){
 
 // ========== Quote / Tip ==========
 function setQuoteRandom(animate){
-  const bubble = $("quoteBubble");
-  if (!bubble) return;
-  bubble.textContent = pickRandom(QUOTES);
-
+  const el = $("quoteBubble");
+  if (!el) return;
+  el.textContent = pickRandom(QUOTES);
   if (animate){
     const card = $("homeBubbleCard");
     if (card){
@@ -228,10 +199,9 @@ function setQuoteRandom(animate){
   }
 }
 function setTipRandom(animate){
-  const tip = $("tipText");
-  if (!tip) return;
-  tip.textContent = pickRandom(TIPS);
-
+  const el = $("tipText");
+  if (!el) return;
+  el.textContent = pickRandom(TIPS);
   if (animate){
     const card = $("homeTipCard");
     if (card){
@@ -242,15 +212,14 @@ function setTipRandom(animate){
   }
 }
 
-async function copyText(t){
-  try{
-    await navigator.clipboard?.writeText(t);
-    safeText("tipText", "已複製熊熊小語 💛（點這裡可換提示）");
+function copyText(t){
+  navigator.clipboard?.writeText(t).then(()=>{
+    $("tipText").textContent = "已複製熊熊小語 💛（點這裡可換提示）";
     vibrate();
-  }catch{}
+  }).catch(()=>{});
 }
 
-// ========== 任務：每日固定 ==========
+// ========== Task ==========
 function getTaskIndex(dateISO){
   const map = loadJSON(KEY_TASKIDX, {});
   if (typeof map[dateISO] === "number") return map[dateISO];
@@ -271,7 +240,6 @@ function playTaskDoneFX(alreadyDone){
   if (!fx || !taskCard) return;
 
   fx.innerHTML = "";
-
   taskCard.classList.remove("task-done-glow");
   void taskCard.offsetWidth;
   taskCard.classList.add("task-done-glow");
@@ -291,29 +259,24 @@ function playTaskDoneFX(alreadyDone){
   setTimeout(()=> check.remove(), 700);
 }
 
-// ========== Home render ==========
+// ========== Home ==========
 function renderHome(){
   setQuoteRandom(false);
   setTipRandom(false);
 
-  const taskText = $("taskText");
-  const taskState = $("taskState");
-  if (taskText){
-    const tIdx = getTaskIndex(currentDate);
-    taskText.textContent = TASKS[tIdx];
-  }
+  const tIdx = getTaskIndex(currentDate);
+  $("taskText").textContent = TASKS[tIdx];
 
-  if (taskState){
-    const doneMap = loadJSON(KEY_TASKDONE, {});
-    const done = !!doneMap[currentDate];
-    taskState.textContent = done
-      ? "✅ 你完成了今天的小任務！謝謝你照顧自己。"
-      : "（完成後打勾，沒完成也沒關係）";
-  }
+  const doneMap = loadJSON(KEY_TASKDONE, {});
+  const done = !!doneMap[currentDate];
+  $("taskState").textContent = done
+    ? "✅ 你完成了今天的小任務！謝謝你照顧自己。"
+    : "（完成後打勾，沒完成也沒關係）";
 
   renderRecentOnHome();
 }
 
+// Carousel
 function renderRecentOnHome(){
   const box = $("recentList");
   if (!box) return;
@@ -351,23 +314,6 @@ function renderRecentOnHome(){
 }
 
 // ========== Write ==========
-function renderPhotoGrid(){
-  const grid = $("photoGrid");
-  if (!grid) return;
-  grid.innerHTML = "";
-  tempPhotos.forEach((src, i)=>{
-    const div = document.createElement("div");
-    div.className = "photo";
-    div.innerHTML = `<img src="${src}" alt="photo${i}"><button class="x" title="刪除">×</button>`;
-    const x = div.querySelector(".x");
-    x?.addEventListener("click", ()=>{
-      tempPhotos.splice(i,1);
-      renderPhotoGrid();
-    });
-    grid.appendChild(div);
-  });
-}
-
 function syncWriteFormFromDate(){
   tempPhotos = [];
   renderPhotoGrid();
@@ -375,20 +321,30 @@ function syncWriteFormFromDate(){
   const entries = loadJSON(KEY_ENTRIES, {});
   const entry = entries[currentDate];
 
-  const f1 = $("field3things");
-  const f2 = $("fieldMoment");
-  const f3 = $("fieldSelf");
-  if (f1) f1.value = entry?.threeThings || "";
-  if (f2) f2.value = entry?.moment || "";
-  if (f3) f3.value = entry?.selfTalk || "";
+  $("field3things").value = entry?.threeThings || "";
+  $("fieldMoment").value = entry?.moment || "";
+  $("fieldSelf").value = entry?.selfTalk || "";
 
   tempPhotos = Array.isArray(entry?.photos) ? entry.photos.slice(0,3) : [];
   renderPhotoGrid();
 
-  const state = $("saveState");
-  if (state){
-    state.textContent = entry ? `（已載入 ${prettyDate(currentDate)} 的日記，可直接修改再儲存）` : "";
-  }
+  $("saveState").textContent = entry ? `（已載入 ${prettyDate(currentDate)} 的日記，可直接修改再儲存）` : "";
+}
+
+function renderPhotoGrid(){
+  const grid = $("photoGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  tempPhotos.forEach((src, i)=>{
+    const div = document.createElement("div");
+    div.className = "photo";
+    div.innerHTML = `<img src="${src}" alt="photo${i}"><button class="x" type="button" title="刪除">×</button>`;
+    div.querySelector(".x").addEventListener("click", ()=>{
+      tempPhotos.splice(i,1);
+      renderPhotoGrid();
+    });
+    grid.appendChild(div);
+  });
 }
 
 // ========== Journal ==========
@@ -427,79 +383,65 @@ function renderJournalList(){
 }
 
 // ========== Modal ==========
-const modal = () => $("entryModal");
+const modal = $("entryModal");
 function openEntryModal(dateISO){
   const entries = loadJSON(KEY_ENTRIES, {});
   const e = entries[dateISO];
   if (!e) return;
 
-  safeText("modalTitle", `📖 ${prettyDate(dateISO)} 的日記`);
-  safeText("modal3things", e.threeThings || "（未填）");
-  safeText("modalMoment",  e.moment || "（未填）");
-  safeText("modalSelf",    e.selfTalk || "（未填）");
+  $("modalTitle").textContent = `📖 ${prettyDate(dateISO)} 的日記`;
+  $("modal3things").textContent = e.threeThings || "（未填）";
+  $("modalMoment").textContent  = e.moment || "（未填）";
+  $("modalSelf").textContent    = e.selfTalk || "（未填）";
 
   const mp = $("modalPhotos");
-  if (mp){
-    mp.innerHTML = "";
-    (e.photos || []).forEach(src=>{
-      const div = document.createElement("div");
-      div.className = "photo";
-      div.innerHTML = `<img src="${src}" alt="photo">`;
-      mp.appendChild(div);
-    });
-  }
+  mp.innerHTML = "";
+  (e.photos || []).forEach(src=>{
+    const div = document.createElement("div");
+    div.className = "photo";
+    div.innerHTML = `<img src="${src}" alt="photo">`;
+    mp.appendChild(div);
+  });
 
-  const editBtn = $("modalEditBtn");
-  if (editBtn){
-    editBtn.onclick = ()=>{
-      closeEntryModal();
-      setDate(dateISO);
-      go("write");
-      syncWriteFormFromDate();
-    };
-  }
+  $("modalEditBtn").onclick = ()=>{
+    closeEntryModal();
+    setDate(dateISO);
+    go("write");
+    syncWriteFormFromDate();
+  };
 
-  const delBtn = $("modalDeleteBtn");
-  if (delBtn){
-    delBtn.onclick = ()=>{
-      if (!confirm("確定要刪除這篇日記嗎？")) return;
-      const entries2 = loadJSON(KEY_ENTRIES, {});
-      delete entries2[dateISO];
-      saveJSON(KEY_ENTRIES, entries2);
-      closeEntryModal();
-      renderHome();
-      renderJournalList();
-    };
-  }
+  $("modalDeleteBtn").onclick = ()=>{
+    if (!confirm("確定要刪除這篇日記嗎？")) return;
+    const entries2 = loadJSON(KEY_ENTRIES, {});
+    delete entries2[dateISO];
+    saveJSON(KEY_ENTRIES, entries2);
+    closeEntryModal();
+    renderHome();
+    renderJournalList();
+  };
 
-  const m = modal();
-  if (m){
-    m.classList.remove("hidden");
-    m.setAttribute("aria-hidden","false");
-  }
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden","false");
 }
 function closeEntryModal(){
-  const m = modal();
-  if (!m) return;
-  m.classList.add("hidden");
-  m.setAttribute("aria-hidden","true");
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden","true");
 }
 
 // ========== Date ==========
 function setDate(iso){
   currentDate = iso;
-  safeText("dateText", prettyDate(currentDate));
-  safeValue("datePicker", currentDate);
-  safeValue("writeDate", currentDate);
+  $("dateText").textContent = prettyDate(currentDate);
+  $("datePicker").value = currentDate;
+  $("writeDate").value = currentDate;
 
   renderHome();
-  const pages = getPages();
-  if (pages.home?.classList.contains("active")) playHomeFlip();
+  if (pages.home.classList.contains("active")) playHomeFlip();
 }
 
-// ========== Bind events ==========
-function bindEvents(){
-  // bottom nav
+// ========== Init ==========
+function init(){
+  // nav
   document.querySelectorAll(".navbtn").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const page = btn.dataset.go;
@@ -509,28 +451,25 @@ function bindEvents(){
   });
 
   // date picker
-  safeOn("datePickBtn", "click", ()=>{
-    const dp = $("datePicker");
-    if (!dp) return;
-    dp.showPicker?.() || dp.click();
-  });
+  safeOn("datePickBtn", "click", ()=> $("datePicker").showPicker?.() || $("datePicker").click());
   safeOn("datePicker", "change", (e)=> setDate(e.target.value || todayISO()));
 
-  // avatar click => new quote
+  // avatar
+  loadAvatar();
   safeOn("avatarBtn", "click", ()=>{ setQuoteRandom(true); vibrate(); });
 
-  // tip click => new tip
+  // tip
   safeOn("homeTipCard", "click", ()=>{ setTipRandom(true); vibrate(); });
 
   // long press copy quote
-  const quoteEl = $("quoteBubble");
   let pressTimer;
-  safeOnEl(quoteEl, "touchstart", ()=>{ pressTimer = setTimeout(()=> copyText(quoteEl.textContent), 550); });
-  safeOnEl(quoteEl, "touchend", ()=> clearTimeout(pressTimer));
-  safeOnEl(quoteEl, "mousedown", ()=>{ pressTimer = setTimeout(()=> copyText(quoteEl.textContent), 550); });
-  safeOnEl(quoteEl, "mouseup", ()=> clearTimeout(pressTimer));
+  const qEl = $("quoteBubble");
+  qEl.addEventListener("touchstart", ()=> pressTimer=setTimeout(()=>copyText(qEl.textContent), 550));
+  qEl.addEventListener("touchend", ()=> clearTimeout(pressTimer));
+  qEl.addEventListener("mousedown", ()=> pressTimer=setTimeout(()=>copyText(qEl.textContent), 550));
+  qEl.addEventListener("mouseup", ()=> clearTimeout(pressTimer));
 
-  // task buttons
+  // task done
   safeOn("taskDoneBtn", "click", ()=>{
     const doneMap = loadJSON(KEY_TASKDONE, {});
     const already = !!doneMap[currentDate];
@@ -542,6 +481,7 @@ function bindEvents(){
     vibrate();
   });
 
+  // task swap
   safeOn("taskSwapBtn", "click", ()=>{
     const map = loadJSON(KEY_TASKIDX, {});
     const curr = typeof map[currentDate] === "number" ? map[currentDate] : getTaskIndex(currentDate);
@@ -567,7 +507,7 @@ function bindEvents(){
     syncWriteFormFromDate();
   });
 
-  // photos upload
+  // photos
   safeOn("photoInput", "change", async (e)=>{
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -584,9 +524,9 @@ function bindEvents(){
 
   // save entry
   safeOn("saveEntryBtn", "click", ()=>{
-    const threeThings = ($("field3things")?.value || "").trim();
-    const moment     = ($("fieldMoment")?.value || "").trim();
-    const selfTalk   = ($("fieldSelf")?.value || "").trim();
+    const threeThings = $("field3things").value.trim();
+    const moment = $("fieldMoment").value.trim();
+    const selfTalk = $("fieldSelf").value.trim();
 
     const entries = loadJSON(KEY_ENTRIES, {});
     entries[currentDate] = {
@@ -600,22 +540,19 @@ function bindEvents(){
 
     try{
       saveJSON(KEY_ENTRIES, entries);
-      safeText("saveState", "✅ 已儲存！謝謝你把今天的幸福留住。");
+      $("saveState").textContent = "✅ 已儲存！謝謝你把今天的幸福留住。";
       go("home");
       vibrate();
     }catch{
-      safeText("saveState", "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。");
+      $("saveState").textContent = "⚠️ 儲存失敗：可能照片太大。請刪除幾張或換小一點的照片。";
     }
   });
 
   // modal close
   safeOn("modalBackdrop", "click", closeEntryModal);
   safeOn("modalCloseBtn", "click", closeEntryModal);
-  window.addEventListener("keydown", (e)=>{
-    if (e.key === "Escape") closeEntryModal();
-  });
 
-  // avatar upload
+  // settings avatar upload
   safeOn("avatarInput", "change", async (e)=>{
     const file = e.target.files?.[0];
     if (!file) return;
@@ -660,23 +597,12 @@ function bindEvents(){
     renderHome();
     go("home");
   });
-}
 
-// ========== Init ==========
-function init(){
-  loadAvatar();
-  bindEvents();
-
-  // 初始日期
+  // init render
   setDate(todayISO());
-
-  // 初始載入表單（如果有寫日記頁）
   syncWriteFormFromDate();
-
-  // 初始渲染
   renderHome();
   playHomeFlip();
 }
 
-// ✅ 等 DOM 真的就緒再跑（避免 null 爆炸）
 document.addEventListener("DOMContentLoaded", init);
